@@ -92,6 +92,8 @@ java -jar target/quickstart.jar skills install --all
 
 语言细节见 [`python/`](python/)、[`nodejs/`](nodejs/)、[`java/`](java/)。另有[一页纸指南](docs/onepager.pdf)和[官方文档及 API 汇总](docs/references.md)。
 
+想深入用 SDK：[**boto3 示例**](docs/boto3-examples.md) 逐节讲解客户端与分页、发起调查、读取调查过程、Chat 流式对话、预防建议、定时触发自定义 Agent、用量与配额，每节都有可运行的脚本（[`python/examples/`](python/examples/)）和实测记录。
+
 ## 工作原理
 
 ```mermaid
@@ -155,9 +157,12 @@ journal 的 `content` 是 JSON 字符串。代码解析后，只打印 `observat
 
 ## 官方 Skills
 
-[`tools-for-devops-agent/`](tools-for-devops-agent/) 是官方仓库 [aws/tools-for-devops-agent](https://github.com/aws/tools-for-devops-agent) 的完整副本，采用 Apache-2.0。内容没有改动，只增加了记录来源 commit 的 [UPSTREAM.md](tools-for-devops-agent/UPSTREAM.md)。
+本仓库带有官方仓库 [aws/tools-for-devops-agent](https://github.com/aws/tools-for-devops-agent) 的副本（Apache-2.0，文件内容没有改动，来源 commit 见 [UPSTREAM.md](tools-for-devops-agent/UPSTREAM.md)），分成两个目录：
 
-副本包含 **47 个 Skills**，以及 9 个 Custom Agents、6 个 MCP servers 和 CloudFormation 模板。
+| 目录 | 内容 |
+|---|---|
+| [`skills/`](skills/) | **47 个官方 Skills**，全部放在这一个目录里 |
+| [`tools-for-devops-agent/`](tools-for-devops-agent/) | 其他官方工具：9 个 Custom Agents、6 个 MCP servers、CloudFormation 模板 |
 
 ### Skill 是什么
 
@@ -305,9 +310,9 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`aws-health-events`](tools-for-devops-agent/skills/aws-health-events/) | Chat, RCA | 调查开头先查 AWS Health 事件（服务故障、计划变更、账号通知），判断是不是 AWS 侧问题 |
-| [`support-cases`](tools-for-devops-agent/skills/support-cases/) | Chat, RCA | 调查开头先查历史 Support 工单，找症状相似的旧事故 |
-| [`investigation-cost-guardrail`](tools-for-devops-agent/skills/investigation-cost-guardrail/) | RCA | 调查时控制成本：调用收费 API 前先估价，限制 Athena、S3 扫描等贵操作 |
+| [`aws-health-events`](skills/aws-health-events/) | Chat, RCA | 调查开头先查 AWS Health 事件（服务故障、计划变更、账号通知），判断是不是 AWS 侧问题 |
+| [`support-cases`](skills/support-cases/) | Chat, RCA | 调查开头先查历史 Support 工单，找症状相似的旧事故 |
+| [`investigation-cost-guardrail`](skills/investigation-cost-guardrail/) | RCA | 调查时控制成本：调用收费 API 前先估价，限制 Athena、S3 扫描等贵操作 |
 
 </details>
 
@@ -316,9 +321,9 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`aws-routing`](tools-for-devops-agent/skills/aws-routing/) | Chat, RCA | AWS 会选哪条路：Cloud WAN、DX Gateway、TGW 路由表、ECMP、VPC 最长前缀、BGP 流量工程 |
-| [`aws-vpc-dns-investigation`](tools-for-devops-agent/skills/aws-vpc-dns-investigation/) | Chat, RCA | VPC 内域名解析不对（NXDOMAIN、SERVFAIL、解析到公网地址），或改 DNS 前做检查 |
-| [`aws-natgw-traffic-analysis`](tools-for-devops-agent/skills/aws-natgw-traffic-analysis/) | Chat | NAT 网关里走了什么流量、为什么走这条路、怎么降低 NAT 费用 |
+| [`aws-routing`](skills/aws-routing/) | Chat, RCA | AWS 会选哪条路：Cloud WAN、DX Gateway、TGW 路由表、ECMP、VPC 最长前缀、BGP 流量工程 |
+| [`aws-vpc-dns-investigation`](skills/aws-vpc-dns-investigation/) | Chat, RCA | VPC 内域名解析不对（NXDOMAIN、SERVFAIL、解析到公网地址），或改 DNS 前做检查 |
+| [`aws-natgw-traffic-analysis`](skills/aws-natgw-traffic-analysis/) | Chat | NAT 网关里走了什么流量、为什么走这条路、怎么降低 NAT 费用 |
 
 </details>
 
@@ -327,10 +332,10 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`aws-eks-operations-review`](tools-for-devops-agent/skills/aws-eks-operations-review/) | Chat | 按最佳实践给 EKS 集群打分：运维、安全、升级前检查、资源清单 |
-| [`eks-upgrade-readiness`](tools-for-devops-agent/skills/eks-upgrade-readiness/) | Chat | EKS 升级前评估：版本偏差、废弃 API、插件兼容、升级计划 |
-| [`aws-eks-healthdashboard`](tools-for-devops-agent/skills/aws-eks-healthdashboard/) | Chat | EKS 集群现在健康吗：控制面、节点、工作负载一页看清 |
-| [`ecs-operation-review`](tools-for-devops-agent/skills/ecs-operation-review/) | Chat | ECS 运维评审：6 个维度，7 天指标基线，推荐告警阈值 |
+| [`aws-eks-operations-review`](skills/aws-eks-operations-review/) | Chat | 按最佳实践给 EKS 集群打分：运维、安全、升级前检查、资源清单 |
+| [`eks-upgrade-readiness`](skills/eks-upgrade-readiness/) | Chat | EKS 升级前评估：版本偏差、废弃 API、插件兼容、升级计划 |
+| [`aws-eks-healthdashboard`](skills/aws-eks-healthdashboard/) | Chat | EKS 集群现在健康吗：控制面、节点、工作负载一页看清 |
+| [`ecs-operation-review`](skills/ecs-operation-review/) | Chat | ECS 运维评审：6 个维度，7 天指标基线，推荐告警阈值 |
 
 </details>
 
@@ -339,13 +344,13 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`database-rds-devops`](tools-for-devops-agent/skills/database-rds-devops/) | Chat, RCA | Aurora MySQL / PostgreSQL 数据库内部诊断：缓冲池、连接、锁、复制、索引（需 RDS Data API） |
-| [`rds-operation-review`](tools-for-devops-agent/skills/rds-operation-review/) | Chat | 按 Well-Architected 评审 RDS 和 Aurora：可用性、安全、性能、成本 |
-| [`database-migration-service-expertise`](tools-for-devops-agent/skills/database-migration-service-expertise/) | Chat | DMS 运维评审和排障：最佳实践、性能、成本、切换指导 |
-| [`redshift-support-specialist`](tools-for-devops-agent/skills/redshift-support-specialist/) | Chat | Redshift 查询调优、运维评审和成本优化，支持预置集群和 Serverless |
-| [`msk-operations`](tools-for-devops-agent/skills/msk-operations/) | Chat | Amazon MSK（Kafka）运维、排障和健康评估，支持 Standard 和 Express broker |
-| [`analytics-opensearch-expertise`](tools-for-devops-agent/skills/analytics-opensearch-expertise/) | Chat | OpenSearch 域体检：集群健康、分片、性能、安全、成本（只读） |
-| [`firehose-operation-review`](tools-for-devops-agent/skills/firehose-operation-review/) | Chat | 按 Well-Architected 评审 Amazon Data Firehose 投递流 |
+| [`database-rds-devops`](skills/database-rds-devops/) | Chat, RCA | Aurora MySQL / PostgreSQL 数据库内部诊断：缓冲池、连接、锁、复制、索引（需 RDS Data API） |
+| [`rds-operation-review`](skills/rds-operation-review/) | Chat | 按 Well-Architected 评审 RDS 和 Aurora：可用性、安全、性能、成本 |
+| [`database-migration-service-expertise`](skills/database-migration-service-expertise/) | Chat | DMS 运维评审和排障：最佳实践、性能、成本、切换指导 |
+| [`redshift-support-specialist`](skills/redshift-support-specialist/) | Chat | Redshift 查询调优、运维评审和成本优化，支持预置集群和 Serverless |
+| [`msk-operations`](skills/msk-operations/) | Chat | Amazon MSK（Kafka）运维、排障和健康评估，支持 Standard 和 Express broker |
+| [`analytics-opensearch-expertise`](skills/analytics-opensearch-expertise/) | Chat | OpenSearch 域体检：集群健康、分片、性能、安全、成本（只读） |
+| [`firehose-operation-review`](skills/firehose-operation-review/) | Chat | 按 Well-Architected 评审 Amazon Data Firehose 投递流 |
 
 </details>
 
@@ -354,10 +359,10 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`storage-s3-resiliency-expertise`](tools-for-devops-agent/skills/storage-s3-resiliency-expertise/) | Chat, RCA | S3 存储桶的韧性、安全和数据保护评审（9 个维度） |
-| [`aws-backup-coverage-review`](tools-for-devops-agent/skills/aws-backup-coverage-review/) | Chat | 查哪些资源没被 AWS Backup 保护，评估备份频率、保留期、跨区和跨账号复制 |
-| [`aws-fsxn-operations-review`](tools-for-devops-agent/skills/aws-fsxn-operations-review/) | Chat | FSx for NetApp ONTAP 运维评审：备份、可观测性、安全等 |
-| [`storage-fsx-windows-sla-optimizer`](tools-for-devops-agent/skills/storage-fsx-windows-sla-optimizer/) | Chat, RCA | FSx for Windows 的 SLA、可用性和成本评审（7 个维度） |
+| [`storage-s3-resiliency-expertise`](skills/storage-s3-resiliency-expertise/) | Chat, RCA | S3 存储桶的韧性、安全和数据保护评审（9 个维度） |
+| [`aws-backup-coverage-review`](skills/aws-backup-coverage-review/) | Chat | 查哪些资源没被 AWS Backup 保护，评估备份频率、保留期、跨区和跨账号复制 |
+| [`aws-fsxn-operations-review`](skills/aws-fsxn-operations-review/) | Chat | FSx for NetApp ONTAP 运维评审：备份、可观测性、安全等 |
+| [`storage-fsx-windows-sla-optimizer`](skills/storage-fsx-windows-sla-optimizer/) | Chat, RCA | FSx for Windows 的 SLA、可用性和成本评审（7 个维度） |
 
 </details>
 
@@ -366,13 +371,13 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`bedrock-operation-review`](tools-for-devops-agent/skills/bedrock-operation-review/) | Chat | 按 Well-Architected 评审 Bedrock 工作负载：安全、性能、成本 |
-| [`bedrock-adoption-readiness`](tools-for-devops-agent/skills/bedrock-adoption-readiness/) | Chat | Bedrock 上生产前检查：IAM 治理、数据保留（ZDR）、配额余量、可观测性 |
-| [`sagemaker-ai-ops-review`](tools-for-devops-agent/skills/sagemaker-ai-ops-review/) | Chat | SageMaker AI 运维评审：端点、训练任务、Pipeline、Studio |
-| [`aiml-gpu-training-cluster-investigation`](tools-for-devops-agent/skills/aiml-gpu-training-cluster-investigation/) | Chat, RCA | 排查 GPU 训练/推理集群（HyperPod、ParallelCluster、EC2/EKS GPU） |
-| [`aiml-access-diagnostics`](tools-for-devops-agent/skills/aiml-access-diagnostics/) | Chat, RCA | 排查 Bedrock / SageMaker 的 IAM 拒绝：逐跳查调用方、PassRole、信任策略、SCP，给出最小策略 |
-| [`agentcore-ops-review`](tools-for-devops-agent/skills/agentcore-ops-review/) | Chat | 按 Well-Architected 评审 AgentCore：Runtime 韧性、Gateway、Memory、资源使用 |
-| [`agentcore-observability-setup`](tools-for-devops-agent/skills/agentcore-observability-setup/) | Chat | 检查并补齐 Bedrock AgentCore 的可观测性，能追踪 agent 推理、发现静默失败 |
+| [`bedrock-operation-review`](skills/bedrock-operation-review/) | Chat | 按 Well-Architected 评审 Bedrock 工作负载：安全、性能、成本 |
+| [`bedrock-adoption-readiness`](skills/bedrock-adoption-readiness/) | Chat | Bedrock 上生产前检查：IAM 治理、数据保留（ZDR）、配额余量、可观测性 |
+| [`sagemaker-ai-ops-review`](skills/sagemaker-ai-ops-review/) | Chat | SageMaker AI 运维评审：端点、训练任务、Pipeline、Studio |
+| [`aiml-gpu-training-cluster-investigation`](skills/aiml-gpu-training-cluster-investigation/) | Chat, RCA | 排查 GPU 训练/推理集群（HyperPod、ParallelCluster、EC2/EKS GPU） |
+| [`aiml-access-diagnostics`](skills/aiml-access-diagnostics/) | Chat, RCA | 排查 Bedrock / SageMaker 的 IAM 拒绝：逐跳查调用方、PassRole、信任策略、SCP，给出最小策略 |
+| [`agentcore-ops-review`](skills/agentcore-ops-review/) | Chat | 按 Well-Architected 评审 AgentCore：Runtime 韧性、Gateway、Memory、资源使用 |
+| [`agentcore-observability-setup`](skills/agentcore-observability-setup/) | Chat | 检查并补齐 Bedrock AgentCore 的可观测性，能追踪 agent 推理、发现静默失败 |
 
 </details>
 
@@ -381,10 +386,10 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`devops-agent-cost-insights`](tools-for-devops-agent/skills/devops-agent-cost-insights/) | Chat | DevOps Agent 自己花了多少钱、花在哪：按 Agent Space 和角色拆分 |
-| [`cloudtrail-cost-optimization`](tools-for-devops-agent/skills/cloudtrail-cost-optimization/) | Chat | 找出并量化 CloudTrail 的省钱空间，解释费用为什么涨 |
-| [`config-cost-optimization`](tools-for-devops-agent/skills/config-cost-optimization/) | Chat | 找出并量化 AWS Config 的省钱空间，解释配置项为什么暴涨 |
-| [`guardduty-cost-optimization`](tools-for-devops-agent/skills/guardduty-cost-optimization/) | Chat | 找出并量化 GuardDuty 的省钱空间，找出贵的防护计划 |
+| [`devops-agent-cost-insights`](skills/devops-agent-cost-insights/) | Chat | DevOps Agent 自己花了多少钱、花在哪：按 Agent Space 和角色拆分 |
+| [`cloudtrail-cost-optimization`](skills/cloudtrail-cost-optimization/) | Chat | 找出并量化 CloudTrail 的省钱空间，解释费用为什么涨 |
+| [`config-cost-optimization`](skills/config-cost-optimization/) | Chat | 找出并量化 AWS Config 的省钱空间，解释配置项为什么暴涨 |
+| [`guardduty-cost-optimization`](skills/guardduty-cost-optimization/) | Chat | 找出并量化 GuardDuty 的省钱空间，找出贵的防护计划 |
 
 </details>
 
@@ -393,8 +398,8 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`service-quota-check`](tools-for-devops-agent/skills/service-quota-check/) | Chat, RCA | 出现限流、LimitExceeded 时检查服务配额，也用于容量规划 |
-| [`live-streaming-event-readiness-review`](tools-for-devops-agent/skills/live-streaming-event-readiness-review/) | Chat | 大型直播（比赛、演唱会、发布会）前的只读就绪检查：扛不扛得住峰值 |
+| [`service-quota-check`](skills/service-quota-check/) | Chat, RCA | 出现限流、LimitExceeded 时检查服务配额，也用于容量规划 |
+| [`live-streaming-event-readiness-review`](skills/live-streaming-event-readiness-review/) | Chat | 大型直播（比赛、演唱会、发布会）前的只读就绪检查：扛不扛得住峰值 |
 
 </details>
 
@@ -403,8 +408,8 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`enrich-with-aws-security-agent`](tools-for-devops-agent/skills/enrich-with-aws-security-agent/) | Chat, RCA | 故障可能有安全原因时（认证失败、注入攻击等），结合 AWS Security Agent 的发现 |
-| [`wiz-security-context`](tools-for-devops-agent/skills/wiz-security-context/)（需接入） | Chat, RCA | 资源出现异常（CPU 飙升、异常流量等）时，用 Wiz 判断是否和安全有关（需接入 Wiz） |
+| [`enrich-with-aws-security-agent`](skills/enrich-with-aws-security-agent/) | Chat, RCA | 故障可能有安全原因时（认证失败、注入攻击等），结合 AWS Security Agent 的发现 |
+| [`wiz-security-context`](skills/wiz-security-context/)（需接入） | Chat, RCA | 资源出现异常（CPU 飙升、异常流量等）时，用 Wiz 判断是否和安全有关（需接入 Wiz） |
 
 </details>
 
@@ -413,15 +418,15 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`honeycomb-production-investigation`](tools-for-devops-agent/skills/honeycomb-production-investigation/)（需接入） | Triage, RCA, Chat | 用 Honeycomb 遥测找根因：延迟、错误、发布回归、依赖故障（需接入 Honeycomb） |
-| [`honeycomb-query-patterns`](tools-for-devops-agent/skills/honeycomb-query-patterns/)（需接入） | RCA, Chat | 写和读 Honeycomb 查询：百分位、热力图、关系字段（需接入 Honeycomb） |
-| [`honeycomb-metrics-queries`](tools-for-devops-agent/skills/honeycomb-metrics-queries/)（需接入） | RCA, Chat | 查询 Honeycomb 的 OpenTelemetry 指标数据集（需接入 Honeycomb） |
-| [`honeycomb-slos-and-triggers`](tools-for-devops-agent/skills/honeycomb-slos-and-triggers/)（需接入） | Triage, RCA, Chat | 解读 Honeycomb 的 SLO、错误预算消耗和触发器（需接入 Honeycomb） |
-| [`honeycomb-create-board`](tools-for-devops-agent/skills/honeycomb-create-board/)（需接入） | RCA, Chat | 按 SLO 和查询设计 Honeycomb 看板（需接入 Honeycomb） |
-| [`honeycomb-observability-fundamentals`](tools-for-devops-agent/skills/honeycomb-observability-fundamentals/)（需接入） | Chat | 回答可观测性概念问题：宽事件、高基数、指标和日志的区别 |
-| [`honeycomb-verify-recent-trace`](tools-for-devops-agent/skills/honeycomb-verify-recent-trace/)（需接入） | Release testing, Chat | 发布或测试后，在 Honeycomb 找到最新的 trace 并总结（需接入 Honeycomb） |
-| [`grafana-cloud-investigation`](tools-for-devops-agent/skills/grafana-cloud-investigation/)（需接入） | Chat, Triage, RCA | 用 Grafana Cloud 的遥测数据调查故障（需接入 Grafana Cloud） |
-| [`sumo-logic-investigator`](tools-for-devops-agent/skills/sumo-logic-investigator/)（需接入） | Chat, Triage, RCA | 用 Sumo Logic 的日志、告警、SIEM 调查故障（需接入 Sumo Logic） |
+| [`honeycomb-production-investigation`](skills/honeycomb-production-investigation/)（需接入） | Triage, RCA, Chat | 用 Honeycomb 遥测找根因：延迟、错误、发布回归、依赖故障（需接入 Honeycomb） |
+| [`honeycomb-query-patterns`](skills/honeycomb-query-patterns/)（需接入） | RCA, Chat | 写和读 Honeycomb 查询：百分位、热力图、关系字段（需接入 Honeycomb） |
+| [`honeycomb-metrics-queries`](skills/honeycomb-metrics-queries/)（需接入） | RCA, Chat | 查询 Honeycomb 的 OpenTelemetry 指标数据集（需接入 Honeycomb） |
+| [`honeycomb-slos-and-triggers`](skills/honeycomb-slos-and-triggers/)（需接入） | Triage, RCA, Chat | 解读 Honeycomb 的 SLO、错误预算消耗和触发器（需接入 Honeycomb） |
+| [`honeycomb-create-board`](skills/honeycomb-create-board/)（需接入） | RCA, Chat | 按 SLO 和查询设计 Honeycomb 看板（需接入 Honeycomb） |
+| [`honeycomb-observability-fundamentals`](skills/honeycomb-observability-fundamentals/)（需接入） | Chat | 回答可观测性概念问题：宽事件、高基数、指标和日志的区别 |
+| [`honeycomb-verify-recent-trace`](skills/honeycomb-verify-recent-trace/)（需接入） | Release testing, Chat | 发布或测试后，在 Honeycomb 找到最新的 trace 并总结（需接入 Honeycomb） |
+| [`grafana-cloud-investigation`](skills/grafana-cloud-investigation/)（需接入） | Chat, Triage, RCA | 用 Grafana Cloud 的遥测数据调查故障（需接入 Grafana Cloud） |
+| [`sumo-logic-investigator`](skills/sumo-logic-investigator/)（需接入） | Chat, Triage, RCA | 用 Sumo Logic 的日志、告警、SIEM 调查故障（需接入 Sumo Logic） |
 
 </details>
 
@@ -430,8 +435,8 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 
 | Skill | 生效于 | 做什么 |
 |---|---|---|
-| [`skip-scheduled-maintenance`](tools-for-devops-agent/skills/skip-scheduled-maintenance/)（示例） | Triage | 演示用：维护窗口内跳过中低优先级告警，窗口时间写死为 2025-03-15，要先改 |
-| [`crm-production-investigation-guidelines`](tools-for-devops-agent/skills/crm-production-investigation-guidelines/)（示例） | Triage | 演示用：一个 CRM 示例应用的 triage 规则（会关闭告警合并），只作模板 |
+| [`skip-scheduled-maintenance`](skills/skip-scheduled-maintenance/)（示例） | Triage | 演示用：维护窗口内跳过中低优先级告警，窗口时间写死为 2025-03-15，要先改 |
+| [`crm-production-investigation-guidelines`](skills/crm-production-investigation-guidelines/)（示例） | Triage | 演示用：一个 CRM 示例应用的 triage 规则（会关闭告警合并），只作模板 |
 
 </details>
 
@@ -477,7 +482,7 @@ python devops_agent_quickstart.py ask "过去 7 天有没有影响我账号的 A
 无需 AWS 账号，在仓库根目录执行：
 
 ```bash
-(cd python && python tests/test_quickstart.py && python tests/test_install_skills.py)   # Stubber，按官方 API 模型校验请求
+(cd python && python tests/test_quickstart.py && python tests/test_install_skills.py && python tests/test_examples.py)   # Stubber，按官方 API 模型校验请求
 (cd nodejs && npm test)                                                                  # node:test + aws-sdk-client-mock
 (cd java && mvn test)                                                                    # JUnit 5 + Mockito
 ```
@@ -511,19 +516,21 @@ Python 加 `--online`，或 Node.js / Java 设置 `ONLINE=1`，会额外检查 4
 
 ```text
 .
-├── python/                    devops_agent_quickstart.py · install_skills.py · tests/
+├── python/                    devops_agent_quickstart.py · install_skills.py · examples/ · tests/
 ├── nodejs/                    src/quickstart.mjs · src/install-skills.mjs · test/
 ├── java/                      src/main/java/quickstart/{Main,QuickStart,Skills}.java · src/test/
 ├── iam-policy.json            三种语言共用：本仓库用到的权限
 ├── docs/
 │   ├── onepager.html / .pdf   一页纸指南（A4）
+│   ├── boto3-examples.md      boto3 示例：5.1–5.7 逐节讲解（代码在 python/examples/）
 │   ├── references.md          官方文档和 API 汇总
 │   └── assets/banner.svg
-├── scripts/skills_catalog.py  从 SKILL.md 生成 Skills 目录
-└── tools-for-devops-agent/    官方 Skills / Custom Agents / MCP servers 副本（Apache-2.0）
+├── skills/                    47 个官方 Skills（Apache-2.0）
+├── scripts/skills_catalog.py  从 skills/*/SKILL.md 生成上面的 Skills 目录
+└── tools-for-devops-agent/    其他官方工具：Custom Agents、MCP servers、CloudFormation（Apache-2.0）
 ```
 
 ## License
 
 - 本仓库自己的代码和文档：MIT-0，见 [LICENSE](LICENSE)。
-- `tools-for-devops-agent/`：Apache-2.0，见 [LICENSE](tools-for-devops-agent/LICENSE) 和 [NOTICE](tools-for-devops-agent/NOTICE)。
+- `skills/` 和 `tools-for-devops-agent/`：Apache-2.0，见 [LICENSE](tools-for-devops-agent/LICENSE) 和 [NOTICE](tools-for-devops-agent/NOTICE)。

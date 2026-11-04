@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Install the official skills in tools-for-devops-agent/skills/ into an Agent Space (Node.js).
+// Install the official skills in skills/ into an Agent Space (Node.js).
 //
 //   node src/install-skills.mjs list
 //   node src/install-skills.mjs installed
@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { isMain, makeClient } from "./quickstart.mjs";
 
 const HERE = path.dirname(path.dirname(fileURLToPath(import.meta.url))); // nodejs/
-export const SKILLS_DIR = path.join(HERE, "..", "tools-for-devops-agent", "skills");
+export const SKILLS_DIR = path.join(HERE, "..", "skills");
 const DIST = path.join(HERE, "dist");
 export const GITHUB_TREE = "https://github.com/aws/tools-for-devops-agent/tree/main/skills/";
 export const RUNTIME_PARTS = ["SKILL.md", "references", "assets"]; // what the agent reads

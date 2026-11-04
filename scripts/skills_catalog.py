@@ -1,4 +1,4 @@
-"""Print the skills catalog (Markdown) for README.md from tools-for-devops-agent/skills/*/SKILL.md.
+"""Print the skills catalog (Markdown) for README.md from skills/*/SKILL.md.
 
   python scripts/skills_catalog.py           # print
   python scripts/skills_catalog.py --write   # replace the block between the markers in README.md
@@ -7,7 +7,7 @@ import sys
 import re
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parent.parent / "tools-for-devops-agent" / "skills"
+SKILLS = Path(__file__).resolve().parent.parent / "skills"
 SHORT = {"CHAT": "Chat", "INCIDENT_TRIAGE": "Triage", "INCIDENT_RCA": "RCA", "RELEASE_TESTING": "Release testing", "GENERIC": "All"}
 GROUPS = [
     ("每次调查先用", ["aws-health-events", "support-cases", "investigation-cost-guardrail"]),
@@ -97,7 +97,7 @@ def meta(skill):
     return first, types
 
 
-README = SKILLS.parent.parent / "README.md"
+README = SKILLS.parent / "README.md"
 START, END = "<!-- skills-catalog:start -->", "<!-- skills-catalog:end -->"
 
 
@@ -115,7 +115,7 @@ def main():
             desc = ZH[s]
             where = ", ".join(SHORT.get(t, t) for t in types)
             note = "（示例）" if s in EXAMPLES else "（需接入）" if s.startswith(THIRD) else ""
-            out.append(f"| [`{s}`](tools-for-devops-agent/skills/{s}/){note} | {where} | {desc} |")
+            out.append(f"| [`{s}`](skills/{s}/){note} | {where} | {desc} |")
         out.append("\n</details>\n")
     text = "\n".join(out)
     if "--write" in sys.argv:

@@ -53,7 +53,19 @@
 
 `list_executions`、`list_journal_records`、`list_recommendations`、`list_assets` 都会返回 `nextToken`，要翻页读完。journal 每页最多 100 条。
 
-## 其他常用 API（本仓库没用）
+## boto3 示例用到的其他 API
+
+见 [boto3-examples.md](boto3-examples.md)：
+
+| API | 小节 |
+|---|---|
+| `list_agent_spaces` / `get_agent_space` | 5.1 |
+| `list_chats` | 5.4 |
+| `list_goals` / `update_goal`、`create_backlog_task(taskType="EVALUATION")`、`get_recommendation` / `update_recommendation` | 5.5 |
+| `create_asset(assetType="custom_agent")`、`create_trigger` / `list_triggers` / `get_trigger` / `update_trigger` / `delete_trigger` | 5.6 |
+| `get_account_usage`、Service Quotas | 5.7 |
+
+## 其他常用 API
 
 | API | 作用 | 需要的权限 |
 |---|---|---|

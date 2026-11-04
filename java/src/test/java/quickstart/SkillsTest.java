@@ -38,7 +38,7 @@ import software.amazon.awssdk.services.devopsagent.model.ValidationException;
 
 class SkillsTest {
   static final String S = "00000000-0000-0000-0000-000000000000";
-  static final Skills SK = new Skills(Paths.get("..", "tools-for-devops-agent", "skills"));
+  static final Skills SK = new Skills(Paths.get("..", "skills"));
 
   static Asset asset(String id, String name) {
     return Asset.builder().assetId(id).assetType("skill").version(1).createdAt(Instant.EPOCH).updatedAt(Instant.EPOCH)

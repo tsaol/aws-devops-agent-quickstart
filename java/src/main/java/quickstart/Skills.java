@@ -28,7 +28,7 @@ import software.amazon.awssdk.services.devopsagent.model.AssetContent;
 import software.amazon.awssdk.services.devopsagent.model.DevOpsAgentException;
 import software.amazon.awssdk.services.devopsagent.model.ListAssetsResponse;
 
-/** Install the official skills in tools-for-devops-agent/skills/ into an Agent Space. */
+/** Install the official skills in skills/ into an Agent Space. */
 public final class Skills {
   public static final String GITHUB_TREE =
       "https://github.com/aws/tools-for-devops-agent/tree/main/skills/";
@@ -56,7 +56,7 @@ public final class Skills {
   }
 
   /**
-   * Finds tools-for-devops-agent/skills: $SKILLS_DIR, else walk up from the current directory,
+   * Finds the repo's skills/ folder: $SKILLS_DIR, else walk up from the current directory,
    * else walk up from where the jar is.
    */
   public static Skills locate() {
@@ -71,16 +71,16 @@ public final class Skills {
     }
     for (Path start : starts) {
       for (Path p = start; p != null; p = p.getParent()) {
-        Path d = p.resolve("tools-for-devops-agent").resolve("skills");
-        if (Files.isDirectory(d)) return new Skills(d);
+        Path d = p.resolve("skills");
+        if (Files.isRegularFile(d.resolve("aws-health-events").resolve("SKILL.md"))) return new Skills(d);
       }
     }
-    throw new IllegalStateException("tools-for-devops-agent/skills not found; set SKILLS_DIR to that folder");
+    throw new IllegalStateException("skills/ folder not found; set SKILLS_DIR to the repo's skills folder");
   }
 
   /** java/dist next to the skills copy, the same place for every working directory. */
   public Path distDir() {
-    return skillsDir.toAbsolutePath().getParent().getParent().resolve("java").resolve("dist");
+    return skillsDir.toAbsolutePath().getParent().resolve("java").resolve("dist");
   }
 
   public static boolean isThirdParty(String s) {

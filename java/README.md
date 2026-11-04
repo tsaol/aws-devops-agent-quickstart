@@ -21,7 +21,7 @@ java -jar target/quickstart.jar skills install --all [--include-examples] [--inc
 | `Skills.java` | 安装 skills（`createAsset`，zip 用 `java.util.zip`） |
 | `src/test/` | JUnit 5 + Mockito 离线测试 |
 
-- `skills` 命令会自动找到仓库里的 `tools-for-devops-agent/skills/`：先从当前目录往上找，再从 jar 所在位置往上找。jar 拷到仓库外面用时，设置 `SKILLS_DIR=/path/to/tools-for-devops-agent/skills`。
+- `skills` 命令会自动找到仓库根目录的 `skills/`：先从当前目录往上找，再从 jar 所在位置往上找。jar 拷到仓库外面用时，设置 `SKILLS_DIR=/path/to/repo/skills`。
 - `skills zip` 输出到 `java/dist/`。
 - 出错时只打印一行原因：成功 0、出错 1、用法错误 2，和 Python、Node.js 版一样。
 

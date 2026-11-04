@@ -1,4 +1,4 @@
-"""Install the official skills in tools-for-devops-agent/skills/ into an Agent Space.
+"""Install the official skills in skills/ into an Agent Space.
 
   python install_skills.py list                               # skills in this repo
   python install_skills.py installed                          # skills already in the Agent Space
@@ -24,7 +24,7 @@ from botocore.exceptions import ClientError
 
 HERE = Path(__file__).resolve().parent   # python/
 ROOT = HERE.parent                       # repo root
-SKILLS_DIR = ROOT / "tools-for-devops-agent" / "skills"
+SKILLS_DIR = ROOT / "skills"
 DIST = HERE / "dist"
 GITHUB_TREE = "https://github.com/aws/tools-for-devops-agent/tree/main/skills/"
 RUNTIME_PARTS = ("SKILL.md", "references", "assets")  # what the agent reads; evals/README are dev-only
