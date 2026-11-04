@@ -21,6 +21,15 @@
 | MCP / A2A | [Connecting to DevOps Agent Remote Servers](https://docs.aws.amazon.com/devopsagent/latest/userguide/accessing-devops-agent-connecting-to-devops-agent-remote-servers-index.html) | 让其他 Agent 或 IDE 调用 DevOps Agent |
 | 预览版迁移到 GA | [Migrating from public preview to GA](https://docs.aws.amazon.com/devopsagent/latest/userguide/configuring-integrations-and-knowledge-migrating-from-public-preview-to-general-availability.html) | 预览期用过的话要看 |
 
+## 官方 Skills、Custom Agents、MCP servers
+
+- 官方仓库：<https://github.com/aws/tools-for-devops-agent>（本仓库 [`tools-for-devops-agent/`](../tools-for-devops-agent/) 是它的副本）
+- 文档站：<https://aws.github.io/tools-for-devops-agent/>（Skills、Custom Agents、MCP servers 目录和上手指南）
+- Skills 文档：[DevOps Agent Skills](https://docs.aws.amazon.com/devopsagent/latest/userguide/about-aws-devops-agent-devops-agent-skills.html)
+- Custom Agents 文档：[Custom Agents](https://docs.aws.amazon.com/devopsagent/latest/userguide/working-with-devops-agent-custom-agents-index.html)
+- API 参考：<https://docs.aws.amazon.com/devopsagent/latest/APIReference/Welcome.html>
+- 博客：[Building an End-to-End Agentic SRE Using AWS DevOps Agent](https://aws.amazon.com/blogs/devops/building-an-end-to-end-agentic-sre-using-aws-devops-agent/) · [Best Practices for Deploying AWS DevOps Agent in Production](https://aws.amazon.com/blogs/devops/best-practices-for-deploying-aws-devops-agent-in-production/)
+
 ## SDK
 
 - boto3 客户端名：`devops-agent`（服务端点前缀 `aidevops`，API 版本 `2026-01-01`）

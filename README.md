@@ -11,6 +11,7 @@
 | [`iam-policy.json`](iam-policy.json) | 脚本需要的最小 IAM 权限 |
 | [`docs/references.md`](docs/references.md) | 官方参考文档和 API 说明 |
 | [`tests/test_quickstart.py`](tests/test_quickstart.py) | 离线测试（不需要 AWS 账号） |
+| [`tools-for-devops-agent/`](tools-for-devops-agent/) | 官方 [aws/tools-for-devops-agent](https://github.com/aws/tools-for-devops-agent) 的完整副本：47 个 Skills、9 个 Custom Agents、6 个 MCP servers、CloudFormation 模板（Apache-2.0） |
 
 ## 准备
 
@@ -60,6 +61,36 @@ python tests/test_quickstart.py
 - 每个 Agent Space 默认最多并发 3 个调查、10 个问答（[配额](https://docs.aws.amazon.com/devopsagent/latest/userguide/quotas.html)）。
 - Lambda 自带的 boto3 可能太旧，没有 `devops-agent` 客户端，要把新版 boto3 一起打包。
 
+## 官方 Skills 和工具
+
+[`tools-for-devops-agent/`](tools-for-devops-agent/) 是官方仓库的完整副本，没有改动，来源 commit 见 [UPSTREAM.md](tools-for-devops-agent/UPSTREAM.md)。
+
+| 场景 | Skills（[`tools-for-devops-agent/skills/`](tools-for-devops-agent/skills/)） |
+|---|---|
+| 每次调查先用 | `aws-health-events`、`support-cases` |
+| 网络 | `aws-routing`、`aws-vpc-dns-investigation`、`aws-natgw-traffic-analysis` |
+| 容器 | `aws-eks-operations-review`、`eks-upgrade-readiness`、`aws-eks-healthdashboard`、`ecs-operation-review` |
+| 数据库和数据 | `database-rds-devops`、`rds-operation-review`、`database-migration-service-expertise`、`redshift-support-specialist`、`msk-operations`、`analytics-opensearch-expertise`、`firehose-operation-review` |
+| 存储和备份 | `storage-s3-resiliency-expertise`、`aws-backup-coverage-review`、`aws-fsxn-operations-review`、`storage-fsx-windows-sla-optimizer` |
+| AI/ML | `bedrock-operation-review`、`bedrock-adoption-readiness`、`sagemaker-ai-ops-review`、`aiml-gpu-training-cluster-investigation`、`aiml-access-diagnostics`、`agentcore-ops-review`、`agentcore-observability-setup` |
+| 成本 | `investigation-cost-guardrail`、`devops-agent-cost-insights`、`cloudtrail-cost-optimization`、`config-cost-optimization`、`guardduty-cost-optimization` |
+| 容量和变更 | `service-quota-check`、`skip-scheduled-maintenance`、`live-streaming-event-readiness-review` |
+| 第三方和安全 | Honeycomb（7 个）、`grafana-cloud-investigation`、`sumo-logic-investigator`、`wiz-security-context`、`enrich-with-aws-security-agent`、`crm-production-investigation-guidelines` |
+
+其他内容：
+
+- **Custom Agents**（[`custom-agents/`](tools-for-devops-agent/custom-agents/)）：健康报告、运维评审、EKS 评审、配额监控、工单报告、成本看板等，可以定时运行。
+- **MCP servers**（[`mcp/`](tools-for-devops-agent/mcp/)）：EKS 节点诊断、VPC DNS 诊断、RDS、Redshift、ECS 日志、EMR Spark。
+- **CloudFormation**（[`cloudformation/`](tools-for-devops-agent/cloudformation/)）：
+  - `devops-agent-alarm-investigations`：CloudWatch 告警自动变成调查，不用自己写 Lambda。
+  - `devops-agent-skill-policies`：给 skills 补齐需要的 IAM 权限。
+
+**装到 Agent Space**：在 Agent Space 的 Skills 页选「从 GitHub 导入」，填 skill 目录的 URL，比如 `https://github.com/aws/tools-for-devops-agent/tree/main/skills/aws-routing`。也可以把目录打成 zip 上传（最大 6 MB，必须有 `SKILL.md`）。详见[官方文档](https://docs.aws.amazon.com/devopsagent/latest/userguide/about-aws-devops-agent-devops-agent-skills.html)。
+
+> 这些是官方的 sample code。上生产前请先在非生产环境测试，并检查 IAM 权限。最新版本以官方仓库为准。
+
 ## License
 
-MIT-0，见 [LICENSE](LICENSE)。
+本仓库自己的代码和文档：MIT-0，见 [LICENSE](LICENSE)。
+
+`tools-for-devops-agent/` 目录：Apache-2.0，见 [tools-for-devops-agent/LICENSE](tools-for-devops-agent/LICENSE) 和 [NOTICE](tools-for-devops-agent/NOTICE)。
