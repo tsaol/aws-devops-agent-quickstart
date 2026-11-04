@@ -3,7 +3,8 @@
   python install_skills.py list                               # skills in this repo
   python install_skills.py installed                          # skills already in the Agent Space
   python install_skills.py install aws-health-events aws-routing
-  python install_skills.py install --all
+  python install_skills.py install --all                      # skips examples and third-party skills
+  python install_skills.py install --all --include-examples --include-third-party
   python install_skills.py install aws-routing --from-github  # Agent Space pulls it from GitHub
   python install_skills.py zip aws-routing                    # only build dist/aws-routing.zip
 
@@ -18,15 +19,24 @@ import zipfile
 from pathlib import Path
 
 import boto3
+from botocore.exceptions import ClientError
 
-ROOT = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent   # python/
+ROOT = HERE.parent                       # repo root
 SKILLS_DIR = ROOT / "tools-for-devops-agent" / "skills"
-DIST = ROOT / "dist"
+DIST = HERE / "dist"
 GITHUB_TREE = "https://github.com/aws/tools-for-devops-agent/tree/main/skills/"
 RUNTIME_PARTS = ("SKILL.md", "references", "assets")  # what the agent reads; evals/README are dev-only
 MAX_ZIP = 6 * 1024 * 1024
 AGENT_TYPES = {"GENERIC", "CHAT", "INCIDENT_TRIAGE", "INCIDENT_RCA", "INCIDENT_MITIGATION",
                "INCIDENT_UI", "PREVENTION", "RELEASE_READINESS_REVIEW", "RELEASE_TESTING"}
+
+# --all skips these unless asked. You can still install them by name.
+EXAMPLES = {  # demo rules, edit before real use
+    "crm-production-investigation-guidelines",  # triage rules for a demo CRM app; turns off incident linking
+    "skip-scheduled-maintenance",               # fixed sample window 2025-03-15
+}
+THIRD_PARTY_PREFIXES = ("honeycomb-", "grafana-", "sumo-logic-", "wiz-")  # need that tool connected first
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 SPACE = os.environ.get("AGENT_SPACE_ID", "")
@@ -76,6 +86,17 @@ def build_zip(skill):
     return data
 
 
+def default_skills(include_examples=False, include_third_party=False):
+    out = []
+    for s in all_skills():
+        if s in EXAMPLES and not include_examples:
+            continue
+        if s.startswith(THIRD_PARTY_PREFIXES) and not include_third_party:
+            continue
+        out.append(s)
+    return out
+
+
 def installed_names():
     names, token = {}, None
     while True:
@@ -103,10 +124,16 @@ def install(skills, from_github=False):
             content = {"sourceUrl": {"url": GITHUB_TREE + s}}
         else:
             content = {"zip": {"zipFile": build_zip(s)}}  # boto3 base64-encodes blobs
-        asset = client().create_asset(
-            agentSpaceId=SPACE, assetType="skill",
-            metadata={"agent_types": fm["agent_types"]}, content=content,
-        )["asset"]
+        try:
+            asset = client().create_asset(
+                agentSpaceId=SPACE, assetType="skill",
+                metadata={"agent_types": fm["agent_types"]}, content=content,
+            )["asset"]
+        except ClientError as e:  # e.g. --from-github without a GitHub association
+            msg = e.response["Error"].get("Message", str(e))
+            print(f"FAILED  {s}: {e.response['Error']['Code']}: {msg}")
+            results[s] = "failed"
+            continue
         print(f"install {s} -> {asset['assetId']} {fm['agent_types']}")
         results[s] = asset["assetId"]
     return results
@@ -118,7 +145,8 @@ def main(argv):
     cmd, args = argv[0], argv[1:]
     if cmd == "list":
         for s in all_skills():
-            print(f"{s:45} {','.join(frontmatter(s)['agent_types'])}")
+            tag = " (example)" if s in EXAMPLES else " (third-party)" if s.startswith(THIRD_PARTY_PREFIXES) else ""
+            print(f"{s:45} {','.join(frontmatter(s)['agent_types'])}{tag}")
         return
     if cmd == "zip":
         DIST.mkdir(exist_ok=True)
@@ -135,11 +163,19 @@ def main(argv):
     elif cmd == "install":
         github = "--from-github" in args
         names = [a for a in args if not a.startswith("--")]
-        skills = all_skills() if "--all" in args else names
+        if "--all" in args:
+            skills = default_skills("--include-examples" in args, "--include-third-party" in args)
+            skipped = sorted(set(all_skills()) - set(skills))
+            if skipped:
+                print(f"--all skips {len(skipped)} (examples / third-party): {', '.join(skipped)}")
+        else:
+            skills = names
         unknown = set(skills) - set(all_skills())
         if not skills or unknown:
             sys.exit(f"unknown skills: {sorted(unknown)}" if unknown else __doc__)
-        install(skills, from_github=github)
+        results = install(skills, from_github=github)
+        if "failed" in results.values():
+            sys.exit(1)
     else:
         sys.exit(__doc__)
 

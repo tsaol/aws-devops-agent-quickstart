@@ -1,5 +1,12 @@
+# Python
 __pycache__/
 *.pyc
 .venv/
 venv/
+# Node.js
+node_modules/
+# Java
+target/
+java/cp.txt
+# built skill zips
 dist/

@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="AWS DevOps Agent Quick Start: Python, Node.js and Java, plus 47 official skills">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1020"/>
+      <stop offset="0.55" stop-color="#141a3a"/>
+      <stop offset="1" stop-color="#231a3d"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff9900"/>
+      <stop offset="1" stop-color="#ff5f6d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.82" cy="0.35" r="0.45">
+      <stop offset="0" stop-color="#ff9900" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ff9900" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <style>
+      .t  { font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .m  { font-family: "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+      .flow { stroke-dasharray: 6 10; animation: dash 1.6s linear infinite; }
+      .pulse { animation: pulse 2.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+      .p2 { animation-delay: .8s; } .p3 { animation-delay: 1.6s; }
+      @keyframes dash { to { stroke-dashoffset: -32; } }
+      @keyframes pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+    </style>
+  </defs>
+
+  <rect width="1280" height="360" fill="url(#bg)"/>
+  <rect width="1280" height="360" fill="url(#grid)"/>
+  <rect width="1280" height="360" fill="url(#glow)"/>
+  <rect x="0" y="0" width="1280" height="4" fill="url(#accent)"/>
+
+  <!-- left: title -->
+  <text x="64" y="92" class="t" font-size="18" fill="#ff9900" font-weight="600" letter-spacing="3">AWS DEVOPS AGENT</text>
+  <text x="64" y="150" class="t" font-size="52" fill="#ffffff" font-weight="800">Quick Start</text>
+  <text x="64" y="194" class="t" font-size="21" fill="#c7cbe0">用代码提问、发起故障调查、一键安装官方 Skills</text>
+
+  <!-- language chips -->
+  <g class="m" font-size="16" font-weight="600">
+    <rect x="64" y="226" width="112" height="38" rx="19" fill="#3776ab" fill-opacity="0.18" stroke="#4b8bbe"/>
+    <text x="120" y="250" fill="#ffd43b" text-anchor="middle">Python</text>
+    <rect x="188" y="226" width="118" height="38" rx="19" fill="#339933" fill-opacity="0.18" stroke="#5fa04e"/>
+    <text x="247" y="250" fill="#8cc84b" text-anchor="middle">Node.js</text>
+    <rect x="318" y="226" width="94" height="38" rx="19" fill="#e76f00" fill-opacity="0.18" stroke="#f89820"/>
+    <text x="365" y="250" fill="#f8b26a" text-anchor="middle">Java</text>
+  </g>
+
+  <!-- stats -->
+  <g class="t">
+    <text x="64" y="316" font-size="30" fill="#ffffff" font-weight="800">47</text>
+    <text x="106" y="316" font-size="15" fill="#8f95b2">official skills</text>
+    <text x="232" y="316" font-size="30" fill="#ffffff" font-weight="800">3</text>
+    <text x="256" y="316" font-size="15" fill="#8f95b2">languages</text>
+    <text x="360" y="316" font-size="30" fill="#ffffff" font-weight="800">1</text>
+    <text x="380" y="316" font-size="15" fill="#8f95b2">page guide</text>
+  </g>
+
+  <!-- right: flow -->
+  <g fill="none" stroke-width="2.5" stroke-linecap="round">
+    <path class="flow" d="M720 112 C 800 112, 820 180, 900 180" stroke="#ff9900"/>
+    <path class="flow" d="M720 248 C 800 248, 820 180, 900 180" stroke="#ff5f6d"/>
+    <path class="flow" d="M1004 180 L 1090 180" stroke="#ffb547"/>
+  </g>
+
+  <!-- nodes -->
+  <g class="t">
+    <g>
+      <rect x="560" y="84" width="160" height="56" rx="14" fill="#1b2147" stroke="#ff9900" stroke-opacity="0.7"/>
+      <text x="584" y="118" font-size="20">💬</text>
+      <text x="616" y="110" font-size="15" fill="#ffffff" font-weight="700">ask</text>
+      <text x="616" y="128" font-size="12" fill="#9aa0bf">提问，流式回答</text>
+    </g>
+    <g>
+      <rect x="560" y="220" width="160" height="56" rx="14" fill="#1b2147" stroke="#ff5f6d" stroke-opacity="0.7"/>
+      <text x="584" y="254" font-size="20">🔍</text>
+      <text x="616" y="246" font-size="15" fill="#ffffff" font-weight="700">investigate</text>
+      <text x="616" y="264" font-size="12" fill="#9aa0bf">根因调查和建议</text>
+    </g>
+
+    <!-- agent core -->
+    <circle cx="952" cy="180" r="62" fill="#ff9900" fill-opacity="0.35" filter="url(#soft)" class="pulse"/>
+    <circle cx="952" cy="180" r="52" fill="#20264f" stroke="url(#accent)" stroke-width="3"/>
+    <text x="952" y="176" font-size="15" fill="#ffffff" font-weight="800" text-anchor="middle">DevOps</text>
+    <text x="952" y="196" font-size="15" fill="#ffffff" font-weight="800" text-anchor="middle">Agent</text>
+
+    <!-- skills stack -->
+    <g>
+      <rect x="1106" y="122" width="132" height="34" rx="9" fill="#1b2147" stroke="#ffb547" stroke-opacity="0.55" class="pulse"/>
+      <text x="1120" y="144" font-size="12" fill="#ffd9a0" class="m">aws-routing</text>
+      <rect x="1106" y="164" width="132" height="34" rx="9" fill="#1b2147" stroke="#ffb547" stroke-opacity="0.55" class="pulse p2"/>
+      <text x="1120" y="186" font-size="12" fill="#ffd9a0" class="m">health-events</text>
+      <rect x="1106" y="206" width="132" height="34" rx="9" fill="#1b2147" stroke="#ffb547" stroke-opacity="0.55" class="pulse p3"/>
+      <text x="1120" y="228" font-size="12" fill="#ffd9a0" class="m">+45 skills</text>
+      <text x="1172" y="268" font-size="13" fill="#9aa0bf" text-anchor="middle">🧩 skills</text>
+    </g>
+  </g>
+</svg>

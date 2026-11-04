@@ -15,11 +15,12 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+HERE = Path(__file__).resolve().parent.parent  # python/
+ROOT = HERE.parent                               # repo root
 os.environ["AGENT_SPACE_ID"] = "00000000-0000-0000-0000-000000000000"
 os.environ.setdefault("AWS_ACCESS_KEY_ID", "x")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "x")
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(HERE))
 
 from botocore.stub import ANY, Stubber  # noqa: E402
 
@@ -59,6 +60,23 @@ def test_zips():
     print(f"ok  zips: all 47 build, SKILL.md at root, only runtime files, biggest {biggest // 1024} KB")
 
 
+def test_default_selection():
+    d = ins.default_skills()
+    assert len(d) == 35, len(d)
+    assert not set(d) & ins.EXAMPLES
+    assert not [x for x in d if x.startswith(ins.THIRD_PARTY_PREFIXES)]
+    assert len(ins.default_skills(include_examples=True)) == 37
+    assert len(ins.default_skills(include_examples=True, include_third_party=True)) == 47
+    print("ok  --all: 35 by default, skips 2 examples + 10 third-party, flags add them back")
+
+
+def test_readme_lists_every_skill():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    missing = [s for s in ins.all_skills() if f"`{s}`" not in readme]
+    assert not missing, missing
+    print("ok  README: all 47 skills listed")
+
+
 def test_install_flow():
     st = Stubber(ins.client())
     # one skill already in the Agent Space, on the second page
@@ -76,28 +94,38 @@ def test_install_flow():
         "agentSpaceId": S, "assetType": "skill",
         "metadata": {"agent_types": ["INCIDENT_TRIAGE"]},
         "content": {"sourceUrl": {"url": ins.GITHUB_TREE + "skip-scheduled-maintenance"}}})
+    st.add_response("list_assets", {"items": []},
+                    {"agentSpaceId": S, "assetType": "skill", "maxResults": 50})
+    st.add_client_error("create_asset", "ValidationException",
+                        "No GitHub access is configured for the repository's host.")
+    st.add_response("create_asset", {"asset": asset("a-4", "support-cases")}, {
+        "agentSpaceId": S, "assetType": "skill",
+        "metadata": {"agent_types": ["CHAT", "INCIDENT_RCA"]},
+        "content": {"sourceUrl": {"url": ins.GITHUB_TREE + "support-cases"}}})
     with st:
         r = ins.install(["aws-health-events", "aws-routing"])
         assert r == {"aws-health-events": "skipped", "aws-routing": "a-2"}, r
         r = ins.install(["skip-scheduled-maintenance"], from_github=True)
         assert r == {"skip-scheduled-maintenance": "a-3"}, r
+        r = ins.install(["aws-routing", "support-cases"], from_github=True)  # first fails, second still runs
+        assert r == {"aws-routing": "failed", "support-cases": "a-4"}, r
         st.assert_no_pending_responses()
-    print("ok  install flow: skip existing, zip upload, GitHub import (Stubber vs API model)")
+    print("ok  install flow: skip existing, zip upload, GitHub import, keep going after a failure (Stubber vs API model)")
 
 
 def test_cli():
     py = sys.executable
     env = {**os.environ, "AGENT_SPACE_ID": ""}
-    out = subprocess.run([py, "install_skills.py", "list"], cwd=ROOT, env=env,
+    out = subprocess.run([py, "install_skills.py", "list"], cwd=HERE, env=env,
                          capture_output=True, text=True, check=True).stdout
     assert out.count("\n") == 47 and "aws-routing" in out, out[:300]
-    out = subprocess.run([py, "install_skills.py", "zip", "aws-routing"], cwd=ROOT, env=env,
+    out = subprocess.run([py, "install_skills.py", "zip", "aws-routing"], cwd=HERE, env=env,
                          capture_output=True, text=True, check=True).stdout
-    z = ROOT / "dist" / "aws-routing.zip"
+    z = HERE / "dist" / "aws-routing.zip"
     assert z.exists() and "aws-routing.zip" in out
     z.unlink()
-    (ROOT / "dist").rmdir()
-    r = subprocess.run([py, "install_skills.py", "install", "aws-routing"], cwd=ROOT, env=env,
+    (HERE / "dist").rmdir()
+    r = subprocess.run([py, "install_skills.py", "install", "aws-routing"], cwd=HERE, env=env,
                        capture_output=True, text=True)
     assert r.returncode != 0 and "AGENT_SPACE_ID" in r.stderr, r.stderr
     print("ok  cli: list, zip, and install refuses without AGENT_SPACE_ID")
@@ -120,6 +148,8 @@ def test_github_urls():
 if __name__ == "__main__":
     test_frontmatter()
     test_zips()
+    test_default_selection()
+    test_readme_lists_every_skill()
     test_install_flow()
     test_cli()
     if "--online" in sys.argv:

@@ -5,6 +5,7 @@
 
 Env: AGENT_SPACE_ID (required), AWS_REGION (default us-east-1)
 """
+import json
 import os
 import sys
 import time
@@ -13,25 +14,70 @@ import boto3
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 SPACE = os.environ.get("AGENT_SPACE_ID", "")
+# Journal record types worth showing. The rest (message, utilization,
+# ui_investigation_summary, ...) is raw model traffic or data for the web UI.
+SHOW = {
+    "observation": ("title", "analysis"),
+    "investigation_gap": ("title", "description"),
+    "root_cause": ("title", "description"),
+    "mitigation": ("title", "description"),
+    "investigation_result": (None, "text"),
+}
 DONE = {"COMPLETED", "FAILED", "TIMED_OUT", "CANCELED", "LINKED", "SKIPPED"}
 
 client = boto3.client("devops-agent", region_name=REGION)
 
 
-def ask(question):
-    """Chat: one question, stream the answer to stdout."""
+def ask(question, write=None):
+    """Chat: one question, stream the answer. Returns the answer text.
+
+    The stream has several content blocks: thinking, tool_summary, text,
+    final_response, chat_title... Only "text" is the answer. "final_response"
+    repeats it, so it is used only if no "text" block came.
+    """
+    write = write or (lambda t: print(t, end="", flush=True))
     chat = client.create_chat(agentSpaceId=SPACE)
     resp = client.send_message(
         agentSpaceId=SPACE, executionId=chat["executionId"], content=question
     )
+    block_type, answer, fallback = {}, [], []
     for event in resp["events"]:
-        delta = event.get("contentBlockDelta", {}).get("delta", {})
-        if "textDelta" in delta:
-            print(delta["textDelta"]["text"], end="", flush=True)
-        if "responseFailed" in event:
+        if "contentBlockStart" in event:
+            block_type[event["contentBlockStart"]["index"]] = event["contentBlockStart"].get("type")
+        elif "contentBlockDelta" in event:
+            d = event["contentBlockDelta"]
+            text = d.get("delta", {}).get("textDelta", {}).get("text")
+            kind = block_type.get(d.get("index"))
+            if text and kind == "text":
+                answer.append(text)
+                write(text)
+            elif text and kind == "final_response":
+                fallback.append(text)
+        elif "responseFailed" in event:
             raise RuntimeError(event["responseFailed"].get("errorMessage"))
-    print()
-    return chat["executionId"]
+    if not answer and fallback:
+        answer = fallback
+        write("".join(fallback))
+    write("\n")
+    return "".join(answer)
+
+
+def record_text(record):
+    """Short readable line for a journal record, or None to skip it.
+    `content` comes back as a JSON string."""
+    kind = record["recordType"]
+    if kind not in SHOW:
+        return None
+    c = record["content"]
+    if isinstance(c, str):
+        try:
+            c = json.loads(c)
+        except ValueError:
+            return f"{kind}: {c}"
+    title_key, body_key = SHOW[kind]
+    title = c.get(title_key) if title_key else None
+    body = c.get(body_key) or ""
+    return f"{kind}: {title} - {body}" if title else f"{kind}: {body}"
 
 
 def investigate(title, description, priority="HIGH", poll_seconds=30):
@@ -58,7 +104,9 @@ def investigate(title, description, priority="HIGH", poll_seconds=30):
             agentSpaceId=SPACE, executionId=ex["executionId"], order="ASC"
         )["records"]
         for r in records:
-            print(f"  [{r['createdAt']:%H:%M:%S}] {r['recordType']}: {str(r['content'])[:200]}")
+            line = record_text(r)
+            if line:
+                print(f"  [{r['createdAt']:%H:%M:%S}] {line}")
 
     # What the agent suggests
     for rec in client.list_recommendations(agentSpaceId=SPACE, taskId=task_id)["recommendations"]:

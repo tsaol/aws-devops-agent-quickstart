@@ -43,7 +43,11 @@ st.add_response("list_executions", {"executions": [{
     {"agentSpaceId": S, "taskId": "t-1"})
 st.add_response("list_journal_records", {"records": [{
     "agentSpaceId": S, "executionId": "e0000000-0000-4000-8000-000000000001", "recordId": "r-1", "createdAt": now,
-    "recordType": "finding", "content": {"text": "ALB target group sg-123 lost port 443"}}]},
+    "recordType": "observation", "content": '{"type": "observation", "title": "SG 规则被删", "analysis": "ALB target group sg-123 lost port 443"}'}, {
+    "agentSpaceId": S, "executionId": "e0000000-0000-4000-8000-000000000001", "recordId": "r-2", "createdAt": now,
+    "recordType": "utilization", "content": '{"data": {"context_window": {"utilization": 1.8}}}'}, {
+    "agentSpaceId": S, "executionId": "e0000000-0000-4000-8000-000000000001", "recordId": "r-3", "createdAt": now,
+    "recordType": "investigation_result", "content": '{"type": "investigation_result", "text": "根因：443 端口规则被删除"}'}]},
     {"agentSpaceId": S, "executionId": "e0000000-0000-4000-8000-000000000001", "order": "ASC"})
 st.add_response("list_recommendations", {"recommendations": [{
     "agentSpaceArn": "arn:aws:aidevops:us-east-1:111122223333:agentspace/" + S,
@@ -59,7 +63,10 @@ with st:
         t = q.investigate("5xx spike", "ALB 5xx > 5%", poll_seconds=0)
     assert t["status"] == "COMPLETED", t
     text = out.getvalue()
-    assert "lost port 443" in text and "Restore SG rule" in text, text
+    assert "observation: SG 规则被删 - ALB target group sg-123 lost port 443" in text, text
+    assert "investigation_result: 根因：443 端口规则被删除" in text, text
+    assert "utilization" not in text, text
+    assert "Restore SG rule" in text, text
     print(text)
 
     # send_message returns an event stream; Stubber can't build one, so fake only that call.
@@ -68,8 +75,17 @@ with st:
         assert kw == {"agentSpaceId": S, "executionId": "c0000000-0000-4000-8000-000000000001", "content": "Any 5xx in the last hour?"}
         return {"events": iter([
             {"responseCreated": {"responseId": "x"}},
-            {"contentBlockDelta": {"index": 0, "delta": {"textDelta": {"text": "Yes, "}}}},
-            {"contentBlockDelta": {"index": 0, "delta": {"textDelta": {"text": "3 alarms."}}}},
+            {"contentBlockStart": {"index": 0, "type": "thinking"}},
+            {"contentBlockDelta": {"index": 0, "delta": {"textDelta": {"text": "I should check alarms"}}}},
+            {"contentBlockStart": {"index": 1, "type": "tool_summary"}},
+            {"contentBlockDelta": {"index": 1, "delta": {"textDelta": {"text": "Done"}}}},
+            {"contentBlockStart": {"index": 2, "type": "text"}},
+            {"contentBlockDelta": {"index": 2, "delta": {"textDelta": {"text": "Yes, "}}}},
+            {"contentBlockDelta": {"index": 2, "delta": {"textDelta": {"text": "3 alarms."}}}},
+            {"contentBlockStart": {"index": 3, "type": "final_response"}},
+            {"contentBlockDelta": {"index": 3, "delta": {"textDelta": {"text": "Yes, 3 alarms."}}}},
+            {"contentBlockStart": {"index": 4, "type": "chat_title"}},
+            {"contentBlockDelta": {"index": 4, "delta": {"textDelta": {"text": "Alarm check"}}}},
             {"responseCompleted": {"responseId": "x"}},
         ])}
 

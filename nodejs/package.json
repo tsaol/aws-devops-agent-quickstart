@@ -1,0 +1,25 @@
+{
+  "name": "aws-devops-agent-quickstart-nodejs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Call AWS DevOps Agent from Node.js: ask, investigate, install official skills",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "quickstart": "src/quickstart.mjs",
+    "install-skills": "src/install-skills.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "license": "MIT-0",
+  "dependencies": {
+    "@aws-sdk/client-devops-agent": "^3.1161.0",
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "aws-sdk-client-mock": "^4.1.0"
+  }
+}

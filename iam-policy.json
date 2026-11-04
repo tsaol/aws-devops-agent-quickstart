@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "DevOpsAgentQuickstart",
+      "Sid": "AskAndInvestigate",
       "Effect": "Allow",
       "Action": [
         "aidevops:CreateChat",
@@ -12,6 +12,15 @@
         "aidevops:ListExecutions",
         "aidevops:ListJournalRecords",
         "aidevops:ListRecommendations"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "InstallSkills",
+      "Effect": "Allow",
+      "Action": [
+        "aidevops:CreateAsset",
+        "aidevops:ListAssets"
       ],
       "Resource": "*"
     }

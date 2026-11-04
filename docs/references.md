@@ -34,7 +34,9 @@
 
 - boto3 客户端名：`devops-agent`（服务端点前缀 `aidevops`，API 版本 `2026-01-01`）
 - boto3 API 参考：<https://docs.aws.amazon.com/boto3/latest/reference/services/devops-agent.html>
-- 本仓库测试用的版本：boto3 1.42.97
+- Node.js：[`@aws-sdk/client-devops-agent`](https://www.npmjs.com/package/@aws-sdk/client-devops-agent)（测试版本 3.1161.0）
+- Java：[`software.amazon.awssdk:devopsagent`](https://central.sonatype.com/artifact/software.amazon.awssdk/devopsagent)（测试版本 2.57.8；2.57 之前没有 `sourceUrl`）
+- 本仓库测试用的版本：boto3 1.43.123（Asset API 从 1.43 开始有）
 
 ## 本仓库用到的 API
 
@@ -43,8 +45,9 @@
 | `create_chat` | 新建一个问答会话，返回 `executionId` |
 | `send_message` | 在会话里提问，返回**事件流**（`contentBlockDelta.delta.textDelta.text` 是文本片段） |
 | `create_backlog_task` | 发起任务，`taskType` 为 `INVESTIGATION`（调查）或 `EVALUATION`（预防评估） |
-| `get_backlog_task` | 查任务状态：`PENDING_TRIAGE` `PENDING_START` `IN_PROGRESS` `PENDING_CUSTOMER_APPROVAL` `COMPLETED` `FAILED` `TIMED_OUT` `CANCELED` `LINKED` |
+| `get_backlog_task` | 查任务状态：`PENDING_TRIAGE` `PENDING_START` `IN_PROGRESS` `WAITING` `PENDING_CUSTOMER_APPROVAL` `COMPLETED` `FAILED` `TIMED_OUT` `CANCELED` `LINKED` `SKIPPED` |
 | `list_executions` | 列出任务下的执行（调查、缓解、问答等） |
 | `list_journal_records` | 读 Agent 的每一步：推理、动作、查过的数据源 |
 | `list_recommendations` | 读调查给出的建议 |
 | `get_account_usage` | 查本月调查小时数、问答次数等用量 |
+| `create_asset` / `list_assets` | 安装 skill（`assetType="skill"`，内容是 zip 或 `sourceUrl`）/ 列出已装的 |
