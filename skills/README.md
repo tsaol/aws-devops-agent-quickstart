@@ -1,6 +1,6 @@
 # 官方 Skills（47 个）
 
-这里是 [aws/tools-for-devops-agent](https://github.com/aws/tools-for-devops-agent) 仓库 `skills/` 目录的副本，内容没有改动，来源 commit 见 [`../tools-for-devops-agent/UPSTREAM.md`](../tools-for-devops-agent/UPSTREAM.md)。License：Apache-2.0，见本目录的 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)。
+这里是 [aws/tools-for-devops-agent](https://github.com/aws/tools-for-devops-agent) 仓库 `skills/` 目录的副本，内容没有改动，来源 commit 见 [`../tools-for-devops-agent/UPSTREAM.md`](../tools-for-devops-agent/UPSTREAM.md)。License：Apache-2.0，见本目录的 [LICENSE.txt](LICENSE.txt) 和 [NOTICE.txt](NOTICE.txt)（官方 `skills/.gitignore` 只允许 `.md`、`.txt` 等上传支持的后缀，所以加了 `.txt`）。
 
 每个子目录是一个 skill：
 
