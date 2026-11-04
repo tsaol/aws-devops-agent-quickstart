@@ -13,7 +13,7 @@ import boto3
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 SPACE = os.environ.get("AGENT_SPACE_ID", "")
-DONE = {"COMPLETED", "FAILED", "TIMED_OUT", "CANCELED", "LINKED"}
+DONE = {"COMPLETED", "FAILED", "TIMED_OUT", "CANCELED", "LINKED", "SKIPPED"}
 
 client = boto3.client("devops-agent", region_name=REGION)
 

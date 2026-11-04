@@ -43,7 +43,7 @@
 <ol>
   <li><b>建好 Agent Space</b>，并关联要监控的 AWS 账号（控制台、CLI、CDK、CloudFormation、Terraform 都可以）。记下 <code>agentSpaceId</code>。</li>
   <li><b>Region</b>：Agent Space 要建在支持的 15 个 Region 之一（如 <code>us-east-1</code>、<code>eu-central-1</code>、<code>ap-northeast-1</code>）。它能调查账号内<b>所有 Region</b> 的资源，不用每个 Region 建一个。</li>
-  <li><b>SDK</b>：<code>pip install -U boto3</code>，客户端名是 <code>devops-agent</code>。旧版本没有这个客户端。</li>
+  <li><b>SDK</b>：Python 3.10+，<code>pip install -U boto3</code>（≥ 1.43），客户端名是 <code>devops-agent</code>。</li>
   <li><b>调用方 IAM 权限</b>（本页代码用到的最小集合）：</li>
 </ol>
 <pre><code>{ <span class="s">"Effect"</span>: <span class="s">"Allow"</span>, <span class="s">"Resource"</span>: <span class="s">"*"</span>,
@@ -67,7 +67,7 @@
   <span>create_backlog_task</span><b>→</b><span>get_backlog_task 轮询</span><b>→</b>
   <span>list_executions</span><b>→</b><span>list_journal_records</span><b>→</b><span>list_recommendations</span>
 </div>
-<p style="margin:2px 0">任务结束状态：<code>COMPLETED</code> <code>FAILED</code> <code>TIMED_OUT</code> <code>CANCELED</code>，还有 <code>LINKED</code>（被合并到已有的同类调查）。</p>
+<p style="margin:2px 0">任务结束状态：<code>COMPLETED</code> <code>FAILED</code> <code>TIMED_OUT</code> <code>CANCELED</code>，还有 <code>LINKED</code>（合并到已有调查）、<code>SKIPPED</code>（被 triage 跳过）。</p>
 </div>
 
 <div class="full">
@@ -89,7 +89,8 @@ SPACE = <span class="s">"&lt;AGENT_SPACE_ID&gt;"</span>
 
 ask(<span class="s">"过去 24 小时有哪些告警触发了？"</span>)</code></pre>
 <pre><code><span class="c"># B. 调查：发起 → 等待 → 读过程和建议</span>
-END = (<span class="s">"COMPLETED"</span>, <span class="s">"FAILED"</span>, <span class="s">"TIMED_OUT"</span>, <span class="s">"CANCELED"</span>, <span class="s">"LINKED"</span>)
+END = (<span class="s">"COMPLETED"</span>, <span class="s">"FAILED"</span>, <span class="s">"TIMED_OUT"</span>, <span class="s">"CANCELED"</span>, <span class="s">"LINKED"</span>,
+       <span class="s">"SKIPPED"</span>)
 
 <span class="k">def</span> <span class="f">investigate</span>(title, desc):
     kw = dict(agentSpaceId=SPACE)
