@@ -55,15 +55,32 @@ public final class Skills {
     this.skillsDir = skillsDir;
   }
 
-  /** Finds tools-for-devops-agent/skills by walking up from the current directory. */
+  /**
+   * Finds tools-for-devops-agent/skills: $SKILLS_DIR, else walk up from the current directory,
+   * else walk up from where the jar is.
+   */
   public static Skills locate() {
     String env = System.getenv("SKILLS_DIR");
     if (env != null && !env.isEmpty()) return new Skills(Paths.get(env));
-    for (Path p = Paths.get("").toAbsolutePath(); p != null; p = p.getParent()) {
-      Path d = p.resolve("tools-for-devops-agent").resolve("skills");
-      if (Files.isDirectory(d)) return new Skills(d);
+    List<Path> starts = new ArrayList<>();
+    starts.add(Paths.get("").toAbsolutePath());
+    try {
+      starts.add(Paths.get(Skills.class.getProtectionDomain().getCodeSource().getLocation().toURI()));
+    } catch (Exception ignored) {
+      // no code source (e.g. some test runners)
     }
-    throw new IllegalStateException("tools-for-devops-agent/skills not found; set SKILLS_DIR");
+    for (Path start : starts) {
+      for (Path p = start; p != null; p = p.getParent()) {
+        Path d = p.resolve("tools-for-devops-agent").resolve("skills");
+        if (Files.isDirectory(d)) return new Skills(d);
+      }
+    }
+    throw new IllegalStateException("tools-for-devops-agent/skills not found; set SKILLS_DIR to that folder");
+  }
+
+  /** java/dist next to the skills copy, the same place for every working directory. */
+  public Path distDir() {
+    return skillsDir.toAbsolutePath().getParent().getParent().resolve("java").resolve("dist");
   }
 
   public static boolean isThirdParty(String s) {
@@ -108,6 +125,7 @@ public final class Skills {
 
   /** Zip only SKILL.md, references/ and assets/, with SKILL.md at the zip root. */
   public byte[] buildZip(String skill) {
+    if (!all().contains(skill)) throw new IllegalArgumentException("unknown skill: " + skill);
     Path src = skillsDir.resolve(skill);
     ByteArrayOutputStream buf = new ByteArrayOutputStream();
     try (ZipOutputStream z = new ZipOutputStream(buf)) {
@@ -147,7 +165,7 @@ public final class Skills {
       ListAssetsResponse page = client.listAssets(r -> r.agentSpaceId(space).assetType("skill")
           .maxResults(50).nextToken(t));
       for (Asset a : page.items()) {
-        Document name = a.metadata().isMap() ? a.metadata().asMap().get("name") : null;
+        Document name = a.metadata() != null && a.metadata().isMap() ? a.metadata().asMap().get("name") : null;
         if (name != null && name.isString()) names.put(name.asString(), a.assetId());
       }
       token = page.nextToken();
@@ -176,7 +194,7 @@ public final class Skills {
       try {
         Asset asset = client.createAsset(r -> r.agentSpaceId(space).assetType("skill")
             .metadata(metadata).content(content)).asset();
-        log.accept("install " + s + " -> " + asset.assetId() + " " + fm.agentTypes());
+        log.accept("install " + s + " -> " + asset.assetId() + " " + String.join(",", fm.agentTypes()));
         results.put(s, asset.assetId());
       } catch (DevOpsAgentException e) { // e.g. --from-github without a GitHub association
         log.accept("FAILED  " + s + ": " + e.awsErrorDetails().errorCode() + ": "

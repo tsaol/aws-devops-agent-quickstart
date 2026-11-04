@@ -118,6 +118,20 @@ class SkillsTest {
   }
 
   @Test
+  void cliRejectsTyposUnknownOptionsAndAllWithNames() {
+    org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> SK.buildZip("aws-rooting"));
+    for (String[] a : List.of(new String[] {"zip", "aws-rooting"}, new String[] {"install", "--al"},
+        new String[] {"install", "--include-example", "--all"}, new String[] {"list", "--x"})) {
+      Main.UsageException e = org.junit.jupiter.api.Assertions.assertThrows(Main.UsageException.class,
+          () -> Main.checkSkillArgs(a), String.join(" ", a));
+      assertTrue(e.getMessage().startsWith("unknown"), e.getMessage());
+    }
+    Main.checkSkillArgs(new String[] {"install", "--all", "--include-examples"}); // valid
+    assertEquals("dist", SK.distDir().getFileName().toString());
+    assertEquals("java", SK.distDir().getParent().getFileName().toString());
+  }
+
+  @Test
   @EnabledIfEnvironmentVariable(named = "ONLINE", matches = "1")
   void everyGithubSkillUrlOpens() throws IOException {
     List<String> bad = new ArrayList<>();

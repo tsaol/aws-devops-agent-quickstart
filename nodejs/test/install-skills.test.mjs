@@ -53,6 +53,7 @@ test("install: skip existing (paged), zip upload, GitHub import", async () => {
   const quiet = { log: () => {} };
   let r = await ins.install(c, S, ["aws-health-events", "aws-routing"], quiet);
   assert.deepEqual(r, { "aws-health-events": "skipped", "aws-routing": "new-CHAT+INCIDENT_RCA" });
+  m.on(ListAssetsCommand, { agentSpaceId: S, assetType: "skill", maxResults: 50 }).resolves({ items: [{ assetId: "a-9", metadata: {} }] });
   r = await ins.install(c, S, ["skip-scheduled-maintenance"], { ...quiet, fromGithub: true });
   assert.deepEqual(r, { "skip-scheduled-maintenance": "new-INCIDENT_TRIAGE" });
   const calls = m.commandCalls(CreateAssetCommand).map((x) => x.args[0].input);
@@ -78,9 +79,28 @@ test("cli: list, zip, refuse install without AGENT_SPACE_ID", () => {
   const z = path.join(HERE, "dist", "aws-routing.zip");
   assert.ok(fs.existsSync(z));
   fs.rmSync(path.join(HERE, "dist"), { recursive: true });
-  const r = spawnSync(process.execPath, ["src/install-skills.mjs", "install", "aws-routing"], { cwd: HERE, env, encoding: "utf8" });
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /AGENT_SPACE_ID/);
+  const fails = (args, want, extraEnv = {}) => {
+    const r = spawnSync(process.execPath, ["src/install-skills.mjs", ...args], { cwd: HERE, env: { ...env, ...extraEnv }, encoding: "utf8" });
+    assert.equal(r.status, 2, `${args}: ${r.stderr}`);
+    assert.match(r.stderr, want);
+  };
+  fails(["install", "aws-routing"], /AGENT_SPACE_ID/);
+  fails(["zip", "aws-rooting"], /unknown skills: aws-rooting/); // typo -> error, not an empty zip
+  fails(["install", "--al"], /unknown option: --al/);
+  fails(["install", "--all", "aws-routing"], /either --all or skill names/, { AGENT_SPACE_ID: S });
+  assert.throws(() => ins.buildZip("aws-rooting"), /unknown skill/);
+});
+
+test("bin entry works through a symlink (npm link / npx)", () => {
+  const dir = fs.mkdtempSync(path.join(HERE, ".bin-test-"));
+  try {
+    const link = path.join(dir, "install-skills");
+    fs.symlinkSync(path.join(HERE, "src", "install-skills.mjs"), link);
+    const out = execFileSync(process.execPath, [link, "list"], { env: { ...process.env, AGENT_SPACE_ID: "" }, encoding: "utf8" });
+    assert.equal(out.trim().split("\n").length, 47);
+  } finally {
+    fs.rmSync(dir, { recursive: true });
+  }
 });
 
 test("online: every GitHub skill URL opens", { skip: !process.env.ONLINE }, async () => {

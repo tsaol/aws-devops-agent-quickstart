@@ -9,14 +9,15 @@
 //   node src/install-skills.mjs install aws-routing --from-github
 //   node src/install-skills.mjs zip aws-routing             # only build dist/aws-routing.zip
 //
-// Env: AGENT_SPACE_ID (not needed for list / zip), AWS_REGION (default us-east-1)
+// Env: AGENT_SPACE_ID (not needed for list / zip)
+//      AWS_REGION, else AWS_DEFAULT_REGION, else us-east-1
 // IAM: aidevops:CreateAsset, aidevops:ListAssets
 import { CreateAssetCommand, ListAssetsCommand } from "@aws-sdk/client-devops-agent";
 import { zipSync } from "fflate";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { makeClient } from "./quickstart.mjs";
+import { fileURLToPath } from "node:url";
+import { isMain, makeClient } from "./quickstart.mjs";
 
 const HERE = path.dirname(path.dirname(fileURLToPath(import.meta.url))); // nodejs/
 export const SKILLS_DIR = path.join(HERE, "..", "tools-for-devops-agent", "skills");
@@ -59,6 +60,7 @@ function walk(dir) {
 
 /** Zip only SKILL.md, references/ and assets/, with SKILL.md at the zip root. */
 export function buildZip(skill) {
+  if (!allSkills().includes(skill)) throw new Error(`unknown skill: ${skill}`);
   const src = path.join(SKILLS_DIR, skill);
   const files = {};
   for (const part of RUNTIME_PARTS) {
@@ -84,7 +86,7 @@ export async function installedNames(client, space) {
     const page = await client.send(new ListAssetsCommand({
       agentSpaceId: space, assetType: "skill", maxResults: 50, ...(nextToken && { nextToken }),
     }));
-    for (const a of page.items) names[a.metadata?.name] = a.assetId;
+    for (const a of page.items) if (a.metadata?.name) names[a.metadata.name] = a.assetId;
     nextToken = page.nextToken;
   } while (nextToken);
   return names;
@@ -111,14 +113,31 @@ export async function install(client, space, skills, { fromGithub = false, log =
       results[s] = "failed";
       continue;
     }
-    log(`install ${s} -> ${asset.assetId} ${JSON.stringify(fm.agentTypes)}`);
+    log(`install ${s} -> ${asset.assetId} ${fm.agentTypes.join(",")}`);
     results[s] = asset.assetId;
   }
   return results;
 }
 
+const FLAGS = new Set(["--all", "--from-github", "--include-examples", "--include-third-party"]);
+const USAGE = "usage: install-skills.mjs list | zip [skill...] | installed | install <skill...>|--all [--from-github] [--include-examples] [--include-third-party]";
+
+function usage(msg) {
+  if (msg) console.error(msg);
+  console.error(USAGE);
+  process.exit(2);
+}
+
 async function main(argv) {
   const [cmd, ...args] = argv;
+  if (!cmd) usage();
+  const flags = args.filter((a) => a.startsWith("--"));
+  const names = args.filter((a) => !a.startsWith("--"));
+  const bad = cmd === "install" ? flags.filter((f) => !FLAGS.has(f)) : flags;
+  if (bad.length) usage(`unknown option: ${bad.join(" ")}`);
+  const unknown = names.filter((s) => !allSkills().includes(s));
+  if (unknown.length && ["zip", "install"].includes(cmd)) usage(`unknown skills: ${unknown.join(", ")} (see: install-skills.mjs list)`);
+
   const tag = (s) => (EXAMPLES.has(s) ? " (example)" : isThirdParty(s) ? " (third-party)" : "");
   if (cmd === "list") {
     for (const s of allSkills()) console.log(`${s.padEnd(45)} ${frontmatter(s).agentTypes.join(",")}${tag(s)}`);
@@ -126,44 +145,35 @@ async function main(argv) {
   }
   if (cmd === "zip") {
     fs.mkdirSync(DIST, { recursive: true });
-    for (const s of args.length ? args : allSkills()) {
+    for (const s of names.length ? names : allSkills()) {
       const out = path.join(DIST, `${s}.zip`);
       fs.writeFileSync(out, buildZip(s));
       console.log(`${out}  ${Math.floor(fs.statSync(out).size / 1024)} KB`);
     }
     return;
   }
+  if (!["installed", "install"].includes(cmd)) usage();
   const space = process.env.AGENT_SPACE_ID;
-  if (!space) { console.error("set AGENT_SPACE_ID first"); process.exit(2); }
+  if (!space) usage("set AGENT_SPACE_ID first");
   const client = makeClient();
   if (cmd === "installed") {
-    const names = await installedNames(client, space);
-    for (const n of Object.keys(names).sort()) console.log(`${String(n).padEnd(45)} ${names[n]}`);
-  } else if (cmd === "install") {
-    const names = args.filter((a) => !a.startsWith("--"));
-    let skills = names;
-    if (args.includes("--all")) {
-      skills = defaultSkills({
-        includeExamples: args.includes("--include-examples"),
-        includeThirdParty: args.includes("--include-third-party"),
-      });
-      const skipped = allSkills().filter((s) => !skills.includes(s));
-      if (skipped.length) console.log(`--all skips ${skipped.length} (examples / third-party): ${skipped.join(", ")}`);
-    }
-    const unknown = skills.filter((s) => !allSkills().includes(s));
-    if (!skills.length || unknown.length) {
-      console.error(unknown.length ? `unknown skills: ${unknown}` : "name skills or use --all");
-      process.exit(2);
-    }
-    const results = await install(client, space, skills, { fromGithub: args.includes("--from-github") });
-    if (Object.values(results).includes("failed")) process.exit(1);
-  } else {
-    console.error("usage: install-skills.mjs list | zip [skill...] | installed | install <skill...>|--all [--from-github]");
-    process.exit(2);
+    const have = await installedNames(client, space);
+    for (const n of Object.keys(have).sort()) console.log(`${n.padEnd(45)} ${have[n]}`);
+    return;
   }
+  let skills = names;
+  if (flags.includes("--all")) {
+    if (names.length) usage("use either --all or skill names, not both");
+    skills = defaultSkills({ includeExamples: flags.includes("--include-examples"), includeThirdParty: flags.includes("--include-third-party") });
+    const skipped = allSkills().filter((s) => !skills.includes(s));
+    if (skipped.length) console.log(`--all skips ${skipped.length} (examples / third-party): ${skipped.join(", ")}`);
+  }
+  if (!skills.length) usage("name skills or use --all");
+  const results = await install(client, space, skills, { fromGithub: flags.includes("--from-github") });
+  if (Object.values(results).includes("failed")) process.exit(1);
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMain(import.meta.url)) {
   main(process.argv.slice(2)).catch((e) => {
     console.error(`${e.name}: ${e.message}`);
     process.exit(1);

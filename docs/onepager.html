@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <title>用 Python 调用 AWS DevOps Agent：一页上手</title>
 <style>
-  @page { size: A4; margin: 9mm; }
+  @page { size: A4; margin: 8mm; }
   * { box-sizing: border-box; }
-  body { font: 11.5px/1.42 -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  body { font: 11px/1.38 -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
          color: #1f2937; margin: 0 auto; max-width: 210mm; padding: 10mm; background: #fff; }
   h1 { font-size: 19px; margin: 0 0 2px; color: #0f172a; }
   .sub { color: #64748b; margin: 0 0 6px; }
-  h2 { font-size: 13px; margin: 7px 0 3px; padding: 2px 8px; background: #232f3e; color: #fff; border-radius: 3px; }
+  h2 { font-size: 12.5px; margin: 6px 0 3px; padding: 2px 8px; background: #232f3e; color: #fff; border-radius: 3px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
   .full { grid-column: 1 / -1; }
   ul, ol { margin: 2px 0; padding-left: 18px; }
   li { margin: 1px 0; }
   code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11px; background: #f1f5f9; padding: 0 3px; border-radius: 2px; }
-  pre { font: 10px/1.36 "DejaVu Sans Mono", "SF Mono", Menlo, Consolas, "Noto Sans Mono CJK SC", monospace; background: #0f172a; color: #e2e8f0;
+  pre { font: 8.9px/1.25 "DejaVu Sans Mono", "SF Mono", Menlo, Consolas, "Noto Sans Mono CJK SC", monospace; background: #0f172a; color: #e2e8f0;
         padding: 6px 8px; border-radius: 4px; margin: 3px 0; white-space: pre; overflow: hidden; }
   pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
   .k { color: #f472b6; } .s { color: #86efac; } .c { color: #94a3b8; } .f { color: #7dd3fc; }
@@ -44,7 +44,7 @@
   <li><b>建好 Agent Space</b>，并关联要监控的 AWS 账号（控制台、CLI、CDK、CloudFormation、Terraform 都可以）。记下 <code>agentSpaceId</code>。</li>
   <li><b>Region</b>：Agent Space 要建在支持的 15 个 Region 之一（如 <code>us-east-1</code>、<code>eu-central-1</code>、<code>ap-northeast-1</code>）。它能调查账号内<b>所有 Region</b> 的资源，不用每个 Region 建一个。</li>
   <li><b>SDK</b>：Python 3.10+，<code>pip install -U boto3</code>（≥ 1.43），客户端名是 <code>devops-agent</code>。</li>
-  <li><b>调用方 IAM 权限</b>（本页代码用到的最小集合）：</li>
+  <li><b>调用方 IAM 权限</b>（本页代码用到的；<code>Resource</code> 可改成你的 Agent Space ARN）：</li>
 </ol>
 <pre><code>{ <span class="s">"Effect"</span>: <span class="s">"Allow"</span>, <span class="s">"Resource"</span>: <span class="s">"*"</span>,
   <span class="s">"Action"</span>: [ <span class="s">"aidevops:CreateChat"</span>, <span class="s">"aidevops:SendMessage"</span>,
@@ -62,58 +62,73 @@
   <tr><td>返回</td><td>流式文本，秒级</td><td>异步任务，要轮询，分钟级</td></tr>
   <tr><td>并发默认值</td><td>10 / Space</td><td>3 / Space（可申请提高）</td></tr>
 </table>
-<p style="margin:6px 0 2px"><b>调查的调用顺序：</b></p>
-<div class="flow">
-  <span>create_backlog_task</span><b>→</b><span>get_backlog_task 轮询</span><b>→</b>
-  <span>list_executions</span><b>→</b><span>list_journal_records</span><b>→</b><span>list_recommendations</span>
-</div>
-<p style="margin:2px 0">任务结束状态：<code>COMPLETED</code> <code>FAILED</code> <code>TIMED_OUT</code> <code>CANCELED</code>，还有 <code>LINKED</code>（合并到已有调查）、<code>SKIPPED</code>（被 triage 跳过）。</p>
+
+<p style="margin:2px 0">任务结束状态：<code>COMPLETED</code> <code>FAILED</code> <code>TIMED_OUT</code> <code>CANCELED</code>，还有 <code>LINKED</code>（合并到已有调查）、<code>SKIPPED</code>（被 triage 跳过）。<code>PENDING_CUSTOMER_APPROVAL</code> 表示等你在网页里批准缓解方案。</p>
 </div>
 
 <div class="full">
 <h2>③ 代码</h2>
 <div class="grid" style="grid-template-columns: 43fr 57fr">
-<pre><code><span class="k">import</span> boto3, time
-c = boto3.client(<span class="s">"devops-agent"</span>, region_name=<span class="s">"us-east-1"</span>)
-SPACE = <span class="s">"&lt;AGENT_SPACE_ID&gt;"</span>
+<pre><code><span class="k">import</span> boto3, json, time
+c = boto3.client(<span class="s">&quot;devops-agent&quot;</span>,
+                 region_name=<span class="s">&quot;us-east-1&quot;</span>)
+kw = dict(agentSpaceId=<span class="s">&quot;&lt;AGENT_SPACE_ID&gt;&quot;</span>)
 
-<span class="c"># A. 问答：流式打印回答</span>
+<span class="c"># A. 问答：只打印 text 块</span>
 <span class="k">def</span> <span class="f">ask</span>(q):
-    ex = c.create_chat(agentSpaceId=SPACE)[<span class="s">"executionId"</span>]
-    r = c.send_message(agentSpaceId=SPACE,
-                       executionId=ex, content=q)
-    <span class="k">for</span> e <span class="k">in</span> r[<span class="s">"events"</span>]:
-        d = e.get(<span class="s">"contentBlockDelta"</span>, {}).get(<span class="s">"delta"</span>, {})
-        <span class="k">if</span> <span class="s">"textDelta"</span> <span class="k">in</span> d:
-            print(d[<span class="s">"textDelta"</span>][<span class="s">"text"</span>], end=<span class="s">""</span>)
+    ex = c.create_chat(**kw)[<span class="s">&quot;executionId&quot;</span>]
+    r = c.send_message(**kw, content=q,
+                       executionId=ex)
+    k = {}                   <span class="c"># 块序号 -&gt; 类型</span>
+    <span class="k">for</span> e <span class="k">in</span> r[<span class="s">&quot;events&quot;</span>]:
+        <span class="k">if</span> <span class="s">&quot;contentBlockStart&quot;</span> <span class="k">in</span> e:
+            b = e[<span class="s">&quot;contentBlockStart&quot;</span>]
+            k[b[<span class="s">&quot;index&quot;</span>]] = b[<span class="s">&quot;type&quot;</span>]
+        d = e.get(<span class="s">&quot;contentBlockDelta&quot;</span>) <span class="k">or</span> {}
+        <span class="k">if</span> k.get(d.get(<span class="s">&quot;index&quot;</span>)) == <span class="s">&quot;text&quot;</span>:
+            t = d[<span class="s">&quot;delta&quot;</span>].get(<span class="s">&quot;textDelta&quot;</span>, {})
+            print(t.get(<span class="s">&quot;text&quot;</span>, <span class="s">&quot;&quot;</span>), end=<span class="s">&quot;&quot;</span>)
+    print()
+<span class="c"># thinking、tool_summary、final_response</span>
+<span class="c"># 等块不是答案，跳过</span>
 
-ask(<span class="s">"过去 24 小时有哪些告警触发了？"</span>)</code></pre>
-<pre><code><span class="c"># B. 调查：发起 → 等待 → 读过程和建议</span>
-END = (<span class="s">"COMPLETED"</span>, <span class="s">"FAILED"</span>, <span class="s">"TIMED_OUT"</span>, <span class="s">"CANCELED"</span>, <span class="s">"LINKED"</span>,
-       <span class="s">"SKIPPED"</span>)
+<span class="f">ask</span>(<span class="s">&quot;过去 24 小时有哪些告警？&quot;</span>)</code></pre>
+<pre><code><span class="c"># B. 调查：发起 → 等待 → 翻页读结论和建议</span>
+END = (<span class="s">&quot;COMPLETED&quot;</span>, <span class="s">&quot;FAILED&quot;</span>, <span class="s">&quot;TIMED_OUT&quot;</span>, <span class="s">&quot;CANCELED&quot;</span>,
+       <span class="s">&quot;LINKED&quot;</span>, <span class="s">&quot;SKIPPED&quot;</span>, <span class="s">&quot;PENDING_CUSTOMER_APPROVAL&quot;</span>)
+SHOW = {<span class="s">&quot;observation&quot;</span>: <span class="s">&quot;analysis&quot;</span>, <span class="s">&quot;root_cause&quot;</span>: <span class="s">&quot;description&quot;</span>,
+        <span class="s">&quot;investigation_gap&quot;</span>: <span class="s">&quot;description&quot;</span>,
+        <span class="s">&quot;investigation_result&quot;</span>: <span class="s">&quot;text&quot;</span>}
+
+<span class="k">def</span> pages(op, key, **a):                  <span class="c"># 自动翻页</span>
+    p = c.get_paginator(op).paginate(**kw, **a)
+    <span class="k">return</span> p.search(key + <span class="s">&quot;[]&quot;</span>)
 
 <span class="k">def</span> <span class="f">investigate</span>(title, desc):
-    kw = dict(agentSpaceId=SPACE)
     t = c.create_backlog_task(**kw, title=title,
-          description=desc, taskType=<span class="s">"INVESTIGATION"</span>,
-          priority=<span class="s">"HIGH"</span>)[<span class="s">"task"</span>]
-    tid = t[<span class="s">"taskId"</span>]
-    <span class="k">while</span> t[<span class="s">"status"</span>] <span class="k">not in</span> END:
-        time.sleep(<span class="s">30</span>)
-        t = c.get_backlog_task(**kw, taskId=tid)[<span class="s">"task"</span>]
+          description=desc, taskType=<span class="s">&quot;INVESTIGATION&quot;</span>,
+          priority=<span class="s">&quot;HIGH&quot;</span>)[<span class="s">&quot;task&quot;</span>]
+    tid = t[<span class="s">&quot;taskId&quot;</span>]
+    <span class="k">while</span> t[<span class="s">&quot;status&quot;</span>] <span class="k">not</span> <span class="k">in</span> END:
+        time.sleep(30)
+        t = c.get_backlog_task(**kw, taskId=tid)[<span class="s">&quot;task&quot;</span>]
 
-    exs = c.list_executions(**kw, taskId=tid)
-    <span class="k">for</span> ex <span class="k">in</span> exs[<span class="s">"executions"</span>]:      <span class="c"># Agent 每一步</span>
-        rs = c.list_journal_records(**kw, order=<span class="s">"ASC"</span>,
-                 executionId=ex[<span class="s">"executionId"</span>])
-        <span class="k">for</span> r <span class="k">in</span> rs[<span class="s">"records"</span>]:
-            print(r[<span class="s">"recordType"</span>], r[<span class="s">"content"</span>])
-
+    <span class="k">for</span> ex <span class="k">in</span> pages(<span class="s">&quot;list_executions&quot;</span>, <span class="s">&quot;executions&quot;</span>, taskId=tid):
+        eid = ex[<span class="s">&quot;executionId&quot;</span>]
+        <span class="k">for</span> r <span class="k">in</span> pages(<span class="s">&quot;list_journal_records&quot;</span>, <span class="s">&quot;records&quot;</span>,
+                       executionId=eid, order=<span class="s">&quot;ASC&quot;</span>):
+            field = SHOW.get(r[<span class="s">&quot;recordType&quot;</span>])
+            <span class="k">if</span> <span class="k">not</span> field:
+                <span class="k">continue</span>                <span class="c"># 跳过给网页用的记录</span>
+            b = r[<span class="s">&quot;content&quot;</span>]            <span class="c"># 通常是 JSON 字符串</span>
+            b = json.loads(b) <span class="k">if</span> isinstance(b, str) <span class="k">else</span> b
+            print(b.get(<span class="s">&quot;title&quot;</span>, <span class="s">&quot;&quot;</span>), b.get(field))
+    <span class="c"># list_recommendations 没有 paginator，多页时用 nextToken</span>
     recs = c.list_recommendations(**kw, taskId=tid)
-    <span class="k">for</span> rec <span class="k">in</span> recs[<span class="s">"recommendations"</span>]:  <span class="c"># 建议</span>
-        print(rec[<span class="s">"title"</span>], rec[<span class="s">"content"</span>][<span class="s">"summary"</span>])
+    <span class="k">for</span> rec <span class="k">in</span> recs[<span class="s">&quot;recommendations&quot;</span>]:
+        print(rec[<span class="s">&quot;title&quot;</span>], rec[<span class="s">&quot;content&quot;</span>][<span class="s">&quot;summary&quot;</span>])
 
-investigate(<span class="s">"结账 API 5xx 升高"</span>, <span class="s">"14:05 UTC 起 ALB 5xx 超过 5%"</span>)</code></pre>
+<span class="f">investigate</span>(<span class="s">&quot;结账 API 5xx 升高&quot;</span>, <span class="s">&quot;14:05 UTC 起 5xx 超过 5%&quot;</span>)</code></pre>
 </div>
 </div>
 
@@ -123,7 +138,6 @@ investigate(<span class="s">"结账 API 5xx 升高"</span>, <span class="s">"14:
   <li><b>告警自动调查</b>：CloudWatch 告警 → EventBridge → Lambda 调 <code>create_backlog_task</code>，把告警名、时间、指标写进 <code>description</code>。</li>
   <li><b>写回工单或群</b>：调查结束后，把 <code>list_recommendations</code> 的结果发到工单系统或 IM。也可以直接用官方的 ServiceNow、PagerDuty、Slack、Teams 集成。</li>
   <li><b>日报</b>：定时调用 <code>ask("生成过去 24 小时的运维健康摘要")</code>。</li>
-  <li><b>不写代码的替代</b>：Webhook、MCP server、A2A 也能触发 Agent，见官方文档。</li>
 </ul>
 </div>
 
@@ -134,7 +148,7 @@ investigate(<span class="s">"结账 API 5xx 升高"</span>, <span class="s">"14:
   <li><code>send_message</code> 返回<b>事件流</b>，要用 <code>for</code> 循环读，不是一次性返回 JSON。</li>
   <li>调查可能被自动<b>合并</b>（<code>LINKED</code>）到已有调查，这时去看主调查。</li>
   <li>Lambda 自带的 boto3 可能太旧，没有 <code>devops-agent</code> 客户端，要把新版 boto3 一起打包。</li>
-  <li>用量可以用 <code>get_account_usage()</code> 查看本月调查小时数、问答次数。</li>
+  <li>journal 每页最多 100 条，结论在最后，一定要翻页读完。</li>
 </ul>
 </div>
 </div>

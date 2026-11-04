@@ -80,7 +80,8 @@ def test_readme_lists_every_skill():
 def test_install_flow():
     st = Stubber(ins.client())
     # one skill already in the Agent Space, on the second page
-    st.add_response("list_assets", {"items": [asset("a-0", "some-other-skill")], "nextToken": "p2"},
+    st.add_response("list_assets", {"items": [asset("a-0", "some-other-skill"),
+                                              {**asset("a-9", "x"), "metadata": {}}], "nextToken": "p2"},
                     {"agentSpaceId": S, "assetType": "skill", "maxResults": 50})
     st.add_response("list_assets", {"items": [asset("a-1", "aws-health-events")]},
                     {"agentSpaceId": S, "assetType": "skill", "maxResults": 50, "nextToken": "p2"})
@@ -125,10 +126,21 @@ def test_cli():
     assert z.exists() and "aws-routing.zip" in out
     z.unlink()
     (HERE / "dist").rmdir()
-    r = subprocess.run([py, "install_skills.py", "install", "aws-routing"], cwd=HERE, env=env,
-                       capture_output=True, text=True)
-    assert r.returncode != 0 and "AGENT_SPACE_ID" in r.stderr, r.stderr
-    print("ok  cli: list, zip, and install refuses without AGENT_SPACE_ID")
+    def fails(*args, want):
+        r = subprocess.run([py, "install_skills.py", *args], cwd=HERE, env=env, capture_output=True, text=True)
+        assert r.returncode == 2 and want in r.stderr, (args, r.returncode, r.stderr[:200])
+    fails("install", "aws-routing", want="AGENT_SPACE_ID")
+    fails("zip", "aws-rooting", want="unknown skills: aws-rooting")       # typo -> error, not an empty zip
+    fails("install", "--al", want="unknown option: --al")
+    fails("install", "--include-example", "--all", want="unknown option: --include-example")
+    env["AGENT_SPACE_ID"] = S
+    fails("install", "--all", "aws-routing", want="either --all or skill names")
+    try:
+        ins.build_zip("aws-rooting")
+        raise AssertionError("build_zip accepted an unknown skill")
+    except ValueError:
+        pass
+    print("ok  cli: list, zip; exit 2 for missing AGENT_SPACE_ID, typo skill, unknown option, --all + names")
 
 
 def test_github_urls():

@@ -6,7 +6,7 @@ import {
   DevOpsAgentClient, CreateChatCommand, SendMessageCommand, CreateBacklogTaskCommand,
   GetBacklogTaskCommand, ListExecutionsCommand, ListJournalRecordsCommand, ListRecommendationsCommand,
 } from "@aws-sdk/client-devops-agent";
-import { ask, investigate, DONE } from "../src/quickstart.mjs";
+import { ask, investigate, recordText, DONE, NEEDS_YOU } from "../src/quickstart.mjs";
 
 const S = "00000000-0000-0000-0000-000000000000";
 const CHAT = "c0000000-0000-4000-8000-000000000001";
@@ -53,25 +53,26 @@ test("ask throws on responseFailed", async () => {
   m.restore();
 });
 
-test("investigate polls until done, prints steps and recommendations", async () => {
+test("investigate polls, paginates journal and recommendations, hides noise", async () => {
   const m = mockClient(DevOpsAgentClient);
   m.on(CreateBacklogTaskCommand, { agentSpaceId: S, taskType: "INVESTIGATION", title: "5xx spike",
     description: "ALB 5xx > 5%", priority: "HIGH" }).resolves(task("PENDING_START"));
   m.on(GetBacklogTaskCommand, { agentSpaceId: S, taskId: "t-1" })
     .resolvesOnce(task("WAITING")).resolvesOnce(task("IN_PROGRESS")).resolves(task("COMPLETED"));
   m.on(ListExecutionsCommand, { agentSpaceId: S, taskId: "t-1" }).resolves({ executions: [{
-    agentSpaceId: S, executionId: EX, agentSubTask: "INVESTIGATION", createdAt: now, updatedAt: now, executionStatus: "STOPPED" }] });
+    agentSpaceId: S, executionId: EX, agentSubTask: "oncall", createdAt: now, updatedAt: now, executionStatus: "STOPPED" }] });
   m.on(ListJournalRecordsCommand, { agentSpaceId: S, executionId: EX, order: "ASC" }).resolves({ records: [
-    { agentSpaceId: S, executionId: EX, recordId: "r-1", createdAt: now, recordType: "observation",
+    { recordId: "r-1", createdAt: now, recordType: "observation",
       content: '{"type": "observation", "title": "SG 规则被删", "analysis": "ALB target group lost port 443"}' },
-    { agentSpaceId: S, executionId: EX, recordId: "r-2", createdAt: now, recordType: "utilization",
-      content: '{"data": {"context_window": {"utilization": 1.8}}}' },
-    { agentSpaceId: S, executionId: EX, recordId: "r-3", createdAt: now, recordType: "investigation_result",
-      content: '{"type": "investigation_result", "text": "根因：443 端口规则被删除"}' },
+    { recordId: "r-2", createdAt: now, recordType: "utilization", content: '{"data": {}}' },
+  ], nextToken: "j2" });
+  m.on(ListJournalRecordsCommand, { agentSpaceId: S, executionId: EX, order: "ASC", nextToken: "j2" }).resolves({ records: [
+    { recordId: "r-3", createdAt: now, recordType: "investigation_result", content: '{"text": "根因：443 端口规则被删除"}' },
   ] });
   m.on(ListRecommendationsCommand, { agentSpaceId: S, taskId: "t-1" }).resolves({ recommendations: [{
-    recommendationId: "rec-1", taskId: "t-1", title: "Restore SG rule", priority: "HIGH",
-    content: { summary: "Re-add inbound 443" }, status: "PROPOSED" }] });
+    title: "Restore SG rule", priority: "HIGH", content: { summary: "Re-add inbound 443" } }], nextToken: "r2" });
+  m.on(ListRecommendationsCommand, { agentSpaceId: S, taskId: "t-1", nextToken: "r2" }).resolves({ recommendations: [{
+    title: "Add an alarm", priority: "MEDIUM", content: { summary: "Alarm on 5xx" } }] });
   const lines = [];
   const t = await investigate(new DevOpsAgentClient({}), S, "5xx spike", "ALB 5xx > 5%", { pollMs: 0, log: (l) => lines.push(l) });
   const out = lines.join("\n");
@@ -79,13 +80,47 @@ test("investigate polls until done, prints steps and recommendations", async () 
   assert.equal(m.commandCalls(GetBacklogTaskCommand).length, 3);
   assert.match(out, /status = WAITING/);
   assert.match(out, /\[14:05:00\] observation: SG 规则被删 - ALB target group lost port 443/);
-  assert.match(out, /investigation_result: 根因：443 端口规则被删除/);
+  assert.match(out, /investigation_result: 根因：443 端口规则被删除/); // page 2
   assert.doesNotMatch(out, /utilization/);
-  assert.match(out, /\[HIGH\] Restore SG rule/);
+  assert.match(out, /Restore SG rule/);
+  assert.match(out, /Add an alarm/); // page 2
   m.restore();
+});
+
+async function shortFlow(finalTask, opts = {}) {
+  const m = mockClient(DevOpsAgentClient);
+  m.on(CreateBacklogTaskCommand).resolves(task("PENDING_START"));
+  m.on(GetBacklogTaskCommand).resolves(finalTask);
+  m.on(ListExecutionsCommand).resolves({ executions: [] });
+  m.on(ListRecommendationsCommand).resolves({ recommendations: [] });
+  const lines = [];
+  const t = await investigate(new DevOpsAgentClient({}), S, "x", "y", { pollMs: 0, log: (l) => lines.push(l), ...opts });
+  m.restore();
+  return [t, lines.join("\n")];
+}
+
+test("investigate stops on PENDING_CUSTOMER_APPROVAL, prints primary task for LINKED, stops after max wait", async () => {
+  let [t, out] = await shortFlow(task("PENDING_CUSTOMER_APPROVAL"));
+  assert.equal(t.status, "PENDING_CUSTOMER_APPROVAL");
+  assert.match(out, /approval/);
+  const linked = task("LINKED");
+  Object.assign(linked.task, { primaryTaskId: "t-0", statusReason: "same alarm as t-0" });
+  [t, out] = await shortFlow(linked);
+  assert.match(out, /merged into task t-0: same alarm as t-0/);
+  [t, out] = await shortFlow(task("IN_PROGRESS"), { maxWaitMs: -1 });
+  assert.equal(t.status, "PENDING_START");
+  assert.match(out, /stop waiting/);
+});
+
+test("recordText edge cases do not crash", () => {
+  assert.equal(recordText({ recordType: "message", content: "{}" }), null);
+  assert.equal(recordText({ recordType: "investigation_result", content: "not json" }), "investigation_result: not json");
+  assert.equal(recordText({ recordType: "investigation_result", content: "[1,2]" }), "investigation_result: [1,2]");
+  assert.equal(recordText({ recordType: "observation", content: { title: "t", analysis: "a" } }), "observation: t - a");
 });
 
 test("SKIPPED and LINKED count as done, WAITING does not", () => {
   for (const s of ["COMPLETED", "FAILED", "TIMED_OUT", "CANCELED", "LINKED", "SKIPPED"]) assert.ok(DONE.has(s), s);
   assert.ok(!DONE.has("WAITING"));
+  assert.ok(NEEDS_YOU.has("PENDING_CUSTOMER_APPROVAL"));
 });

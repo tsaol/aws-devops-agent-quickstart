@@ -8,7 +8,8 @@
   python install_skills.py install aws-routing --from-github  # Agent Space pulls it from GitHub
   python install_skills.py zip aws-routing                    # only build dist/aws-routing.zip
 
-Env: AGENT_SPACE_ID (not needed for list / zip), AWS_REGION (default us-east-1)
+Env: AGENT_SPACE_ID (not needed for list / zip)
+     AWS_REGION, else AWS_DEFAULT_REGION, else us-east-1
 Needs boto3 >= 1.43 (Asset API) and IAM: aidevops:CreateAsset, aidevops:ListAssets.
 """
 import io
@@ -38,7 +39,7 @@ EXAMPLES = {  # demo rules, edit before real use
 }
 THIRD_PARTY_PREFIXES = ("honeycomb-", "grafana-", "sumo-logic-", "wiz-")  # need that tool connected first
 
-REGION = os.environ.get("AWS_REGION", "us-east-1")
+REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 SPACE = os.environ.get("AGENT_SPACE_ID", "")
 _client = None
 
@@ -72,6 +73,8 @@ def all_skills():
 
 def build_zip(skill):
     """Zip only SKILL.md, references/ and assets/, with SKILL.md at the zip root."""
+    if skill not in all_skills():
+        raise ValueError(f"unknown skill: {skill}")
     src = SKILLS_DIR / skill
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
@@ -105,7 +108,9 @@ def installed_names():
             kw["nextToken"] = token
         page = client().list_assets(**kw)
         for a in page["items"]:
-            names[a["metadata"].get("name")] = a["assetId"]
+            name = (a.get("metadata") or {}).get("name")
+            if name:
+                names[name] = a["assetId"]
         token = page.get("nextToken")
         if not token:
             return names
@@ -134,15 +139,34 @@ def install(skills, from_github=False):
             print(f"FAILED  {s}: {e.response['Error']['Code']}: {msg}")
             results[s] = "failed"
             continue
-        print(f"install {s} -> {asset['assetId']} {fm['agent_types']}")
+        print(f"install {s} -> {asset['assetId']} {','.join(fm['agent_types'])}")
         results[s] = asset["assetId"]
     return results
 
 
+FLAGS = {"--all", "--from-github", "--include-examples", "--include-third-party"}
+
+
+def usage(msg=None):
+    if msg:
+        print(msg, file=sys.stderr)
+    print(__doc__, file=sys.stderr)
+    sys.exit(2)
+
+
 def main(argv):
     if not argv:
-        sys.exit(__doc__)
+        usage()
     cmd, args = argv[0], argv[1:]
+    flags = [a for a in args if a.startswith("--")]
+    names = [a for a in args if not a.startswith("--")]
+    bad = sorted(set(flags) - FLAGS) if cmd == "install" else flags
+    if bad:
+        usage(f"unknown option: {' '.join(bad)}")
+    unknown = sorted(set(names) - set(all_skills()))
+    if unknown and cmd in ("zip", "install"):
+        usage(f"unknown skills: {', '.join(unknown)} (see: python install_skills.py list)")
+
     if cmd == "list":
         for s in all_skills():
             tag = " (example)" if s in EXAMPLES else " (third-party)" if s.startswith(THIRD_PARTY_PREFIXES) else ""
@@ -150,34 +174,33 @@ def main(argv):
         return
     if cmd == "zip":
         DIST.mkdir(exist_ok=True)
-        for s in args or all_skills():
+        for s in names or all_skills():
             out = DIST / f"{s}.zip"
             out.write_bytes(build_zip(s))
             print(f"{out}  {out.stat().st_size // 1024} KB")
         return
+    if cmd not in ("installed", "install"):
+        usage()
     if not SPACE:
-        sys.exit("set AGENT_SPACE_ID first")
+        usage("set AGENT_SPACE_ID first")
     if cmd == "installed":
         for name, aid in sorted(installed_names().items()):
             print(f"{name:45} {aid}")
-    elif cmd == "install":
-        github = "--from-github" in args
-        names = [a for a in args if not a.startswith("--")]
-        if "--all" in args:
-            skills = default_skills("--include-examples" in args, "--include-third-party" in args)
-            skipped = sorted(set(all_skills()) - set(skills))
-            if skipped:
-                print(f"--all skips {len(skipped)} (examples / third-party): {', '.join(skipped)}")
-        else:
-            skills = names
-        unknown = set(skills) - set(all_skills())
-        if not skills or unknown:
-            sys.exit(f"unknown skills: {sorted(unknown)}" if unknown else __doc__)
-        results = install(skills, from_github=github)
-        if "failed" in results.values():
-            sys.exit(1)
+        return
+    if "--all" in flags:
+        if names:
+            usage("use either --all or skill names, not both")
+        skills = default_skills("--include-examples" in flags, "--include-third-party" in flags)
+        skipped = sorted(set(all_skills()) - set(skills))
+        if skipped:
+            print(f"--all skips {len(skipped)} (examples / third-party): {', '.join(skipped)}")
     else:
-        sys.exit(__doc__)
+        skills = names
+    if not skills:
+        usage("name skills or use --all")
+    results = install(skills, from_github="--from-github" in flags)
+    if "failed" in results.values():
+        sys.exit(1)
 
 
 if __name__ == "__main__":

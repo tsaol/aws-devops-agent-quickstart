@@ -8,27 +8,27 @@ import re
 from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parent.parent / "tools-for-devops-agent" / "skills"
-ICON = {"CHAT": "💬", "INCIDENT_TRIAGE": "🚦", "INCIDENT_RCA": "🔍", "RELEASE_TESTING": "🧪", "GENERIC": "🌐"}
+SHORT = {"CHAT": "Chat", "INCIDENT_TRIAGE": "Triage", "INCIDENT_RCA": "RCA", "RELEASE_TESTING": "Release testing", "GENERIC": "All"}
 GROUPS = [
-    ("🚨 每次调查先用", ["aws-health-events", "support-cases", "investigation-cost-guardrail"]),
-    ("🌐 网络", ["aws-routing", "aws-vpc-dns-investigation", "aws-natgw-traffic-analysis"]),
-    ("📦 容器", ["aws-eks-operations-review", "eks-upgrade-readiness", "aws-eks-healthdashboard", "ecs-operation-review"]),
-    ("🗄️ 数据库和数据", ["database-rds-devops", "rds-operation-review", "database-migration-service-expertise",
+    ("每次调查先用", ["aws-health-events", "support-cases", "investigation-cost-guardrail"]),
+    ("网络", ["aws-routing", "aws-vpc-dns-investigation", "aws-natgw-traffic-analysis"]),
+    ("容器", ["aws-eks-operations-review", "eks-upgrade-readiness", "aws-eks-healthdashboard", "ecs-operation-review"]),
+    ("数据库和数据", ["database-rds-devops", "rds-operation-review", "database-migration-service-expertise",
                      "redshift-support-specialist", "msk-operations", "analytics-opensearch-expertise",
                      "firehose-operation-review"]),
-    ("💾 存储和备份", ["storage-s3-resiliency-expertise", "aws-backup-coverage-review", "aws-fsxn-operations-review",
+    ("存储和备份", ["storage-s3-resiliency-expertise", "aws-backup-coverage-review", "aws-fsxn-operations-review",
                    "storage-fsx-windows-sla-optimizer"]),
-    ("🤖 AI/ML", ["bedrock-operation-review", "bedrock-adoption-readiness", "sagemaker-ai-ops-review",
+    ("AI/ML", ["bedrock-operation-review", "bedrock-adoption-readiness", "sagemaker-ai-ops-review",
                  "aiml-gpu-training-cluster-investigation", "aiml-access-diagnostics", "agentcore-ops-review",
                  "agentcore-observability-setup"]),
-    ("💰 成本", ["devops-agent-cost-insights", "cloudtrail-cost-optimization", "config-cost-optimization",
+    ("成本", ["devops-agent-cost-insights", "cloudtrail-cost-optimization", "config-cost-optimization",
                "guardduty-cost-optimization"]),
-    ("📈 容量和大活动", ["service-quota-check", "live-streaming-event-readiness-review"]),
-    ("🔐 安全", ["enrich-with-aws-security-agent", "wiz-security-context"]),
-    ("🔭 第三方可观测性", ["honeycomb-production-investigation", "honeycomb-query-patterns", "honeycomb-metrics-queries",
+    ("容量和大活动", ["service-quota-check", "live-streaming-event-readiness-review"]),
+    ("安全", ["enrich-with-aws-security-agent", "wiz-security-context"]),
+    ("第三方可观测性", ["honeycomb-production-investigation", "honeycomb-query-patterns", "honeycomb-metrics-queries",
                      "honeycomb-slos-and-triggers", "honeycomb-create-board", "honeycomb-observability-fundamentals",
                      "honeycomb-verify-recent-trace", "grafana-cloud-investigation", "sumo-logic-investigator"]),
-    ("🧪 示例（先改再用）", ["skip-scheduled-maintenance", "crm-production-investigation-guidelines"]),
+    ("示例（先改再用）", ["skip-scheduled-maintenance", "crm-production-investigation-guidelines"]),
 ]
 EXAMPLES = {"skip-scheduled-maintenance", "crm-production-investigation-guidelines"}
 THIRD = ("honeycomb-", "grafana-", "sumo-logic-", "wiz-")
@@ -113,9 +113,9 @@ def main():
         for s in group:
             _, types = meta(s)
             desc = ZH[s]
-            icons = " ".join(ICON.get(t, t) for t in types)
-            note = " ⚠️ 示例" if s in EXAMPLES else " 🔌 需接入" if s.startswith(THIRD) else ""
-            out.append(f"| [`{s}`](tools-for-devops-agent/skills/{s}/){note} | {icons} | {desc} |")
+            where = ", ".join(SHORT.get(t, t) for t in types)
+            note = "（示例）" if s in EXAMPLES else "（需接入）" if s.startswith(THIRD) else ""
+            out.append(f"| [`{s}`](tools-for-devops-agent/skills/{s}/){note} | {where} | {desc} |")
         out.append("\n</details>\n")
     text = "\n".join(out)
     if "--write" in sys.argv:
