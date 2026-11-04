@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DevOpsAgentQuickstart",
+      "Effect": "Allow",
+      "Action": [
+        "aidevops:CreateChat",
+        "aidevops:SendMessage",
+        "aidevops:CreateBacklogTask",
+        "aidevops:GetBacklogTask",
+        "aidevops:ListExecutions",
+        "aidevops:ListJournalRecords",
+        "aidevops:ListRecommendations"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>用 Python 调用 AWS DevOps Agent：一页上手</title>
+<style>
+  @page { size: A4; margin: 9mm; }
+  * { box-sizing: border-box; }
+  body { font: 11.5px/1.42 -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+         color: #1f2937; margin: 0 auto; max-width: 210mm; padding: 10mm; background: #fff; }
+  h1 { font-size: 19px; margin: 0 0 2px; color: #0f172a; }
+  .sub { color: #64748b; margin: 0 0 6px; }
+  h2 { font-size: 13px; margin: 7px 0 3px; padding: 2px 8px; background: #232f3e; color: #fff; border-radius: 3px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  .full { grid-column: 1 / -1; }
+  ul, ol { margin: 2px 0; padding-left: 18px; }
+  li { margin: 1px 0; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11px; background: #f1f5f9; padding: 0 3px; border-radius: 2px; }
+  pre { font: 10px/1.36 "DejaVu Sans Mono", "SF Mono", Menlo, Consolas, "Noto Sans Mono CJK SC", monospace; background: #0f172a; color: #e2e8f0;
+        padding: 6px 8px; border-radius: 4px; margin: 3px 0; white-space: pre; overflow: hidden; }
+  pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+  .k { color: #f472b6; } .s { color: #86efac; } .c { color: #94a3b8; } .f { color: #7dd3fc; }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 4px 0; }
+  .flow span { background: #fff7ed; border: 1px solid #fb923c; border-radius: 3px; padding: 1px 6px; font: 11px Menlo, Consolas, monospace; }
+  .flow b { color: #ea580c; }
+  table { border-collapse: collapse; width: 100%; font-size: 11px; }
+  td, th { border: 1px solid #e2e8f0; padding: 2px 5px; text-align: left; vertical-align: top; }
+  th { background: #f8fafc; }
+  .note { background: #fefce8; border-left: 3px solid #eab308; padding: 4px 8px; margin: 4px 0; font-size: 11.5px; }
+  .foot { color: #94a3b8; font-size: 10.5px; margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 4px; }
+  @media print { body { padding: 0; } h2 { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                 pre, .flow span, .note, th { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+
+<h1>用 Python 调用 AWS DevOps Agent：一页上手</h1>
+<p class="sub">用代码向 Agent 提问、发起故障调查、读取调查过程和建议。适合接入告警、工单和日报流程。</p>
+
+<div class="grid">
+<div>
+<h2>① 准备（一次性）</h2>
+<ol>
+  <li><b>建好 Agent Space</b>，并关联要监控的 AWS 账号（控制台、CLI、CDK、CloudFormation、Terraform 都可以）。记下 <code>agentSpaceId</code>。</li>
+  <li><b>Region</b>：Agent Space 要建在支持的 15 个 Region 之一（如 <code>us-east-1</code>、<code>eu-central-1</code>、<code>ap-northeast-1</code>）。它能调查账号内<b>所有 Region</b> 的资源，不用每个 Region 建一个。</li>
+  <li><b>SDK</b>：<code>pip install -U boto3</code>，客户端名是 <code>devops-agent</code>。旧版本没有这个客户端。</li>
+  <li><b>调用方 IAM 权限</b>（本页代码用到的最小集合）：</li>
+</ol>
+<pre><code>{ <span class="s">"Effect"</span>: <span class="s">"Allow"</span>, <span class="s">"Resource"</span>: <span class="s">"*"</span>,
+  <span class="s">"Action"</span>: [ <span class="s">"aidevops:CreateChat"</span>, <span class="s">"aidevops:SendMessage"</span>,
+    <span class="s">"aidevops:CreateBacklogTask"</span>, <span class="s">"aidevops:GetBacklogTask"</span>,
+    <span class="s">"aidevops:ListExecutions"</span>, <span class="s">"aidevops:ListJournalRecords"</span>,
+    <span class="s">"aidevops:ListRecommendations"</span> ] }</code></pre>
+</div>
+
+<div>
+<h2>② 两种用法</h2>
+<table>
+  <tr><th></th><th>问答（Chat）</th><th>调查（Investigation）</th></tr>
+  <tr><td>适合</td><td>查资源、查告警、出报告</td><td>故障根因分析</td></tr>
+  <tr><td>接口</td><td><code>create_chat</code> + <code>send_message</code></td><td><code>create_backlog_task</code></td></tr>
+  <tr><td>返回</td><td>流式文本，秒级</td><td>异步任务，要轮询，分钟级</td></tr>
+  <tr><td>并发默认值</td><td>10 / Space</td><td>3 / Space（可申请提高）</td></tr>
+</table>
+<p style="margin:6px 0 2px"><b>调查的调用顺序：</b></p>
+<div class="flow">
+  <span>create_backlog_task</span><b>→</b><span>get_backlog_task 轮询</span><b>→</b>
+  <span>list_executions</span><b>→</b><span>list_journal_records</span><b>→</b><span>list_recommendations</span>
+</div>
+<p style="margin:2px 0">任务结束状态：<code>COMPLETED</code> <code>FAILED</code> <code>TIMED_OUT</code> <code>CANCELED</code>，还有 <code>LINKED</code>（被合并到已有的同类调查）。</p>
+</div>
+
+<div class="full">
+<h2>③ 代码</h2>
+<div class="grid" style="grid-template-columns: 43fr 57fr">
+<pre><code><span class="k">import</span> boto3, time
+c = boto3.client(<span class="s">"devops-agent"</span>, region_name=<span class="s">"us-east-1"</span>)
+SPACE = <span class="s">"&lt;AGENT_SPACE_ID&gt;"</span>
+
+<span class="c"># A. 问答：流式打印回答</span>
+<span class="k">def</span> <span class="f">ask</span>(q):
+    ex = c.create_chat(agentSpaceId=SPACE)[<span class="s">"executionId"</span>]
+    r = c.send_message(agentSpaceId=SPACE,
+                       executionId=ex, content=q)
+    <span class="k">for</span> e <span class="k">in</span> r[<span class="s">"events"</span>]:
+        d = e.get(<span class="s">"contentBlockDelta"</span>, {}).get(<span class="s">"delta"</span>, {})
+        <span class="k">if</span> <span class="s">"textDelta"</span> <span class="k">in</span> d:
+            print(d[<span class="s">"textDelta"</span>][<span class="s">"text"</span>], end=<span class="s">""</span>)
+
+ask(<span class="s">"过去 24 小时有哪些告警触发了？"</span>)</code></pre>
+<pre><code><span class="c"># B. 调查：发起 → 等待 → 读过程和建议</span>
+END = (<span class="s">"COMPLETED"</span>, <span class="s">"FAILED"</span>, <span class="s">"TIMED_OUT"</span>, <span class="s">"CANCELED"</span>, <span class="s">"LINKED"</span>)
+
+<span class="k">def</span> <span class="f">investigate</span>(title, desc):
+    kw = dict(agentSpaceId=SPACE)
+    t = c.create_backlog_task(**kw, title=title,
+          description=desc, taskType=<span class="s">"INVESTIGATION"</span>,
+          priority=<span class="s">"HIGH"</span>)[<span class="s">"task"</span>]
+    tid = t[<span class="s">"taskId"</span>]
+    <span class="k">while</span> t[<span class="s">"status"</span>] <span class="k">not in</span> END:
+        time.sleep(<span class="s">30</span>)
+        t = c.get_backlog_task(**kw, taskId=tid)[<span class="s">"task"</span>]
+
+    exs = c.list_executions(**kw, taskId=tid)
+    <span class="k">for</span> ex <span class="k">in</span> exs[<span class="s">"executions"</span>]:      <span class="c"># Agent 每一步</span>
+        rs = c.list_journal_records(**kw, order=<span class="s">"ASC"</span>,
+                 executionId=ex[<span class="s">"executionId"</span>])
+        <span class="k">for</span> r <span class="k">in</span> rs[<span class="s">"records"</span>]:
+            print(r[<span class="s">"recordType"</span>], r[<span class="s">"content"</span>])
+
+    recs = c.list_recommendations(**kw, taskId=tid)
+    <span class="k">for</span> rec <span class="k">in</span> recs[<span class="s">"recommendations"</span>]:  <span class="c"># 建议</span>
+        print(rec[<span class="s">"title"</span>], rec[<span class="s">"content"</span>][<span class="s">"summary"</span>])
+
+investigate(<span class="s">"结账 API 5xx 升高"</span>, <span class="s">"14:05 UTC 起 ALB 5xx 超过 5%"</span>)</code></pre>
+</div>
+</div>
+
+<div>
+<h2>④ 常见接法</h2>
+<ul>
+  <li><b>告警自动调查</b>：CloudWatch 告警 → EventBridge → Lambda 调 <code>create_backlog_task</code>，把告警名、时间、指标写进 <code>description</code>。</li>
+  <li><b>写回工单或群</b>：调查结束后，把 <code>list_recommendations</code> 的结果发到工单系统或 IM。也可以直接用官方的 ServiceNow、PagerDuty、Slack、Teams 集成。</li>
+  <li><b>日报</b>：定时调用 <code>ask("生成过去 24 小时的运维健康摘要")</code>。</li>
+  <li><b>不写代码的替代</b>：Webhook、MCP server、A2A 也能触发 Agent，见官方文档。</li>
+</ul>
+</div>
+
+<div>
+<h2>⑤ 注意事项</h2>
+<ul>
+  <li><code>description</code> 写得越具体（时间、现象、影响范围），调查越准。</li>
+  <li><code>send_message</code> 返回<b>事件流</b>，要用 <code>for</code> 循环读，不是一次性返回 JSON。</li>
+  <li>调查可能被自动<b>合并</b>（<code>LINKED</code>）到已有调查，这时去看主调查。</li>
+  <li>Lambda 自带的 boto3 可能太旧，没有 <code>devops-agent</code> 客户端，要把新版 boto3 一起打包。</li>
+  <li>用量可以用 <code>get_account_usage()</code> 查看本月调查小时数、问答次数。</li>
+</ul>
+</div>
+</div>
+
+<div class="note">完整可运行脚本：仓库根目录的 <code>devops_agent_quickstart.py</code>。用法：<code>AGENT_SPACE_ID=xxx python devops_agent_quickstart.py ask "问题"</code> 或 <code>... investigate "标题" "描述"</code>。</div>
+
+<div class="foot">参考：AWS DevOps Agent 用户指南 docs.aws.amazon.com/devopsagent/latest/userguide/（Supported Regions、IAM permissions、Quotas、CLI onboarding guide）· boto3 <code>devops-agent</code> 客户端（API 版本 2026-01-01）· 2026-11</div>
+</body>
+</html>
